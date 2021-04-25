@@ -8,8 +8,10 @@
 #define __BASE_AI_COMPONENT_HPP__
 
 #include "pragma/entities/components/base_entity_component.hpp"
+#include "pragma/types.hpp"
 #include "pragma/ai/navsystem.h"
 #include "pragma/model/animation/activities.h"
+#include "pragma/model/animation/animated_pose.hpp"
 #include <pragma/math/orientation.h>
 #include <atomic>
 #include <mutex>
@@ -185,7 +187,7 @@ namespace pragma
 		void ResetPath();
 
 		pragma::NetEventId m_netEvSetLookTarget = pragma::INVALID_NET_EVENT;
-		int m_seqIdle;
+		animation::AnimatedPose m_idleAnimPose {};
 		std::unordered_map<int32_t,float> m_animIdMoveSpeed;
 		std::unordered_map<std::string,float> m_animMoveSpeed;
 		float m_lastMovementBlendScale = 0.f;
@@ -199,7 +201,7 @@ namespace pragma
 		void ResolvePathObstruction(Vector3 &dir);
 
 		virtual void OnPathNodeChanged(uint32_t nodeIdx);
-		void BlendAnimationMovement(std::vector<umath::Transform> &bonePoses,std::vector<Vector3> *boneScales);
+		void BlendAnimationMovement(animation::AnimatedPose &pose);
 		Vector2 CalcMovementSpeed() const;
 		float CalcAirMovementModifier() const;
 		float CalcMovementAcceleration() const;

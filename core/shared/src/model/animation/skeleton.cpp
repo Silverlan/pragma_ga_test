@@ -102,7 +102,7 @@ bool Skeleton::IsRootBone(uint32_t boneId) const
 	return m_rootBones.find(boneId) != m_rootBones.end();
 }
 
-int32_t Skeleton::LookupBone(const std::string &name) const
+int32_t Skeleton::LookupBone(const std::string_view &name) const
 {
 	auto &bones = GetBones();
 	auto it = std::find_if(bones.begin(),bones.end(),[&name](const std::shared_ptr<Bone> &bone) {

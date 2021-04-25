@@ -76,7 +76,7 @@ void CSceneComponent::UpdateRenderBuffers(const std::shared_ptr<prosper::IPrimar
 		auto &renderC = *ent.GetRenderComponent();
 		if(optStats && umath::is_flag_set(renderC.GetStateFlags(),CRenderComponent::StateFlags::RenderBufferDirty))
 			(*optStats)->Increment(RenderPassStats::Counter::EntityBufferUpdates);
-		auto *animC = renderC.GetAnimatedComponent();
+		auto *animC = renderC.GetSkAnimatedComponent();
 		if(animC && animC->AreSkeletonUpdateCallbacksEnabled())
 			animC->UpdateBoneMatricesMT();
 		renderC.UpdateRenderBuffers(drawCmd);

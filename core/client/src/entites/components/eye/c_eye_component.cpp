@@ -21,7 +21,6 @@ using namespace pragma;
 // ComponentEventId CEyeComponent::EVENT_ON_BLINK = INVALID_COMPONENT_ID;
 void CEyeComponent::RegisterEvents(pragma::EntityComponentManager &componentManager)
 {
-	BaseAnimatedComponent::RegisterEvents(componentManager);
 	// EVENT_ON_EYEBALLS_UPDATED = componentManager.RegisterEvent("ON_EYEBALLS_UPDATED",std::type_index(typeid(CEyeComponent)));
 	// EVENT_ON_BLINK = componentManager.RegisterEvent("EVENT_ON_BLINK");
 }
@@ -45,7 +44,7 @@ void CEyeComponent::Initialize()
 		UpdateEyeballsMT();
 		UpdateBlinkMT();
 	});
-	GetEntity().AddComponent<CAnimatedComponent>();
+	GetEntity().AddComponent<CSkAnimatedComponent>();
 	GetEntity().AddComponent<CFlexComponent>();
 	OnModelChanged(GetEntity().GetModel());
 }
@@ -55,8 +54,8 @@ void CEyeComponent::OnEntityComponentAdded(BaseEntityComponent &component)
 	BaseEntityComponent::OnEntityComponentAdded(component);
 	if(typeid(component) == typeid(CFlexComponent))
 		m_flexC = component.GetHandle<CFlexComponent>();
-	else if(typeid(component) == typeid(CAnimatedComponent))
-		m_animC = component.GetHandle<CAnimatedComponent>();
+	else if(typeid(component) == typeid(CSkAnimatedComponent))
+		m_animC = component.GetHandle<CSkAnimatedComponent>();
 }
 
 void CEyeComponent::SetBlinkDuration(float dur) {m_blinkDuration = dur;}

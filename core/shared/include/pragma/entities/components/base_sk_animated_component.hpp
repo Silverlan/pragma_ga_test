@@ -11,12 +11,14 @@
 #include "pragma/model/animation/play_animation_flags.hpp"
 #include "pragma/model/animation/activities.h"
 #include "pragma/model/animation/animation_event.h"
+#include "pragma/model/animation/animated_pose.hpp"
+#include "pragma/model/animation/anim_channel_desc.hpp"
+#include "pragma/types.hpp"
 #include <sharedutils/property/util_property.hpp>
 #include <pragma/math/orientation.h>
 #include <mathutil/transform.hpp>
 #include <mathutil/uvec.h>
 
-class Animation;
 class Frame;
 class ModelSubMesh;
 struct AnimationEvent;
@@ -24,33 +26,33 @@ using BoneId = uint16_t;
 enum class ALSoundType : int32_t;
 namespace pragma
 {
-	class DLLNETWORK BaseAnimatedComponent
+	namespace animation {class Animation; class AnimatedPose;};
+	class DLLNETWORK BaseSkAnimatedComponent
 		: public BaseEntityComponent
 	{
 	public:
-		static ComponentEventId EVENT_HANDLE_ANIMATION_EVENT;
-		static ComponentEventId EVENT_ON_PLAY_ANIMATION;
 		static ComponentEventId EVENT_ON_PLAY_LAYERED_ANIMATION;
 		static ComponentEventId EVENT_ON_PLAY_LAYERED_ACTIVITY;
-		static ComponentEventId EVENT_ON_ANIMATION_COMPLETE;
 		static ComponentEventId EVENT_ON_LAYERED_ANIMATION_START;
 		static ComponentEventId EVENT_ON_LAYERED_ANIMATION_COMPLETE;
-		static ComponentEventId EVENT_ON_ANIMATION_START;
 		static ComponentEventId EVENT_TRANSLATE_LAYERED_ANIMATION;
-		static ComponentEventId EVENT_TRANSLATE_ANIMATION;
 		static ComponentEventId EVENT_TRANSLATE_ACTIVITY;
-		static ComponentEventId EVENT_MAINTAIN_ANIMATIONS;
-		static ComponentEventId EVENT_MAINTAIN_ANIMATION;
 		static ComponentEventId EVENT_MAINTAIN_ANIMATION_MOVEMENT;
 		static ComponentEventId EVENT_SHOULD_UPDATE_BONES;
+		static ComponentEventId EVENT_ON_ANIMATION_RESET;
 
 		static ComponentEventId EVENT_ON_PLAY_ACTIVITY;
 		static ComponentEventId EVENT_ON_STOP_LAYERED_ANIMATION;
 		static ComponentEventId EVENT_ON_BONE_TRANSFORM_CHANGED;
-		static ComponentEventId EVENT_ON_ANIMATIONS_UPDATED;
 		static ComponentEventId EVENT_ON_BLEND_ANIMATION;
+
+		static ComponentEventId EVENT_ON_PLAY_ANIMATION;
+		static ComponentEventId EVENT_ON_ANIMATION_COMPLETE;
+		static ComponentEventId EVENT_ON_ANIMATION_START;
+		static ComponentEventId EVENT_MAINTAIN_ANIMATIONS;
+		static ComponentEventId EVENT_ON_ANIMATIONS_UPDATED;
 		static ComponentEventId EVENT_PLAY_ANIMATION;
-		static ComponentEventId EVENT_ON_ANIMATION_RESET;
+		static ComponentEventId EVENT_TRANSLATE_ANIMATION;
 		static constexpr auto *ROOT_POSE_BONE_NAME = "%rootPose%";
 		static void RegisterEvents(pragma::EntityComponentManager &componentManager);
 
@@ -62,39 +64,11 @@ namespace pragma
 			RootPoseTransformEnabled = BaseAnimationDirty<<1u
 		};
 
-		struct DLLNETWORK AnimationSlotInfo
-		{
-		public:
-			AnimationSlotInfo()=default;
-			AnimationSlotInfo(int32_t panimation,int32_t panimationLast=-1)
-				: animation(panimation),cycle(0.f)
-			{}
-			Activity activity = Activity::Invalid;
-			int32_t animation = -1;
-			float cycle = 0.f;
-			FPlayAnim flags = FPlayAnim::Default;
-			std::vector<umath::Transform> bonePoses;
-			std::vector<Vector3> boneScales;
-
-			// These are only used if the animation has a blend-controller
-			std::vector<umath::Transform> bonePosesBc;
-			std::vector<Vector3> boneScalesBc;
-
-			// Keep a reference to our last animation for blending
-			struct
-			{
-				int32_t animation = -1;
-				float cycle = 0.f;
-				FPlayAnim flags = FPlayAnim::Default;
-				std::pair<float,float> blendTimeScale = {0.f,0.f};
-				float blendScale = 1.f;
-			} lastAnim;
-		};
-		static bool GetBlendFramesFromCycle(Animation &anim,float cycle,Frame **outFrameSrc,Frame **outFrameDst,float &outInterpFactor,int32_t frameOffset=0);
-
 		virtual void Initialize() override;
-
 		virtual void MaintainAnimationMovement(const Vector3 &disp);
+
+		virtual void OnEntityComponentAdded(BaseEntityComponent &component) override;
+		virtual void OnEntityComponentRemoved(BaseEntityComponent &component) override;
 
 		void SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos,const Quat &rot,const Vector3 &scale);
 		void SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos,const Quat &rot);
@@ -147,27 +121,24 @@ namespace pragma
 
 		float GetCycle() const;
 		void SetCycle(float cycle);
-		Animation *GetAnimationObject() const;
-		int32_t GetAnimation() const;
+		animation::Animation *GetAnimationObject() const;
+		animation::AnimationId GetAnimation() const;
 
 		Activity GetActivity() const;
-		int32_t GetLayeredAnimation(uint32_t slot) const;
+		animation::AnimationId GetLayeredAnimation(uint32_t slot) const;
 		Activity GetLayeredActivity(uint32_t slot) const;
 
-		virtual void PlayAnimation(int animation,FPlayAnim flags=FPlayAnim::Default);
-		virtual void PlayLayeredAnimation(int slot,int animation,FPlayAnim flags=FPlayAnim::Default);
+		virtual void PlayAnimation(animation::AnimationId animation,FPlayAnim flags=FPlayAnim::Default);
+		virtual void PlayLayeredAnimation(animation::LayeredAnimationSlot slot,animation::AnimationId animation,FPlayAnim flags=FPlayAnim::Default);
 		bool PlayActivity(Activity activity,FPlayAnim flags=FPlayAnim::Default);
-		bool PlayLayeredActivity(int slot,Activity activity,FPlayAnim flags=FPlayAnim::Default);
-		bool PlayLayeredAnimation(int slot,std::string animation,FPlayAnim flags=FPlayAnim::Default);
-		virtual void StopLayeredAnimation(int slot);
+		bool PlayLayeredActivity(animation::LayeredAnimationSlot slot,Activity activity,FPlayAnim flags=FPlayAnim::Default);
+		bool PlayLayeredAnimation(animation::LayeredAnimationSlot slot,std::string animation,FPlayAnim flags=FPlayAnim::Default);
+		virtual void StopLayeredAnimation(animation::LayeredAnimationSlot slot);
 		bool PlayAnimation(const std::string &animation,FPlayAnim flags=FPlayAnim::Default);
-		void SetPlaybackRate(float rate);
-		float GetPlaybackRate() const;
-		const util::PFloatProperty &GetPlaybackRateProperty() const;
-		int32_t SelectTranslatedAnimation(Activity &inOutActivity) const;
-		int SelectWeightedAnimation(Activity activity,int animAvoid=-1) const;
+		animation::AnimationId SelectTranslatedAnimation(Activity &inOutActivity) const;
+		int SelectWeightedAnimation(Activity activity,animation::AnimationId animAvoid=-1) const;
 		// Returns the time left until the current animation has finished playing
-		float GetAnimationDuration() const;
+		float GetRemainingAnimationDuration() const;
 
 		BoneId AddRootPoseBone();
 		void SetRootPoseBoneId(BoneId boneId);
@@ -198,10 +169,8 @@ namespace pragma
 		void ClearAnimationEvents(const std::string &anim,uint32_t frameId);
 		//void RemoveAnimationEvent(uint32_t animId,uint32_t frameId,uint32_t idx);
 
-		void SetLastAnimationBlendScale(float scale);
-
-		const std::vector<umath::ScaledTransform> &GetProcessedBones() const;
-		std::vector<umath::ScaledTransform> &GetProcessedBones();
+		const pragma::animation::AnimatedPose &GetProcessedBones() const;
+		pragma::animation::AnimatedPose &GetProcessedBones();
 
 		void SetBonePosition(UInt32 boneId,const Vector3 &pos,const Quat &rot,const Vector3 *scale,Bool updatePhysics);
 
@@ -210,14 +179,10 @@ namespace pragma
 
 		bool ShouldUpdateBones() const;
 		UInt32 GetBoneCount() const;
-		const std::vector<umath::ScaledTransform> &GetBoneTransforms() const;
-		std::vector<umath::ScaledTransform> &GetBoneTransforms();
-		const std::vector<umath::ScaledTransform> &GetProcessedBoneTransforms() const;
-		std::vector<umath::ScaledTransform> &GetProcessedBoneTransforms();
-		const AnimationSlotInfo &GetBaseAnimationInfo() const;
-		AnimationSlotInfo &GetBaseAnimationInfo();
-		const std::unordered_map<uint32_t,AnimationSlotInfo> &GetAnimationSlotInfos() const;
-		std::unordered_map<uint32_t,AnimationSlotInfo> &GetAnimationSlotInfos();
+		const pragma::animation::AnimatedPose &GetBoneTransforms() const;
+		pragma::animation::AnimatedPose &GetBoneTransforms();
+		const pragma::animation::AnimatedPose &GetProcessedBoneTransforms() const;
+		pragma::animation::AnimatedPose &GetProcessedBoneTransforms();
 
 		Activity TranslateActivity(Activity act);
 		void SetBaseAnimationDirty();
@@ -226,7 +191,7 @@ namespace pragma
 			const std::vector<umath::Transform> &srcBonePoses,const std::vector<Vector3> *optSrcBoneScales,
 			const std::vector<umath::Transform> &dstBonePoses,const std::vector<Vector3> *optDstBoneScales,
 			std::vector<umath::Transform> &outBonePoses,std::vector<Vector3> *optOutBoneScales,
-			Animation &anim,float interpFactor
+			animation::Animation &anim,float interpFactor
 		) const;
 		void BlendBoneFrames(
 			std::vector<umath::Transform> &tgt,std::vector<Vector3> *tgtScales,std::vector<umath::Transform> &add,std::vector<Vector3> *addScales,float blendScale
@@ -240,23 +205,28 @@ namespace pragma
 		bool GetVertexPosition(uint32_t meshGroupId,uint32_t meshId,uint32_t subMeshId,uint32_t vertexId,Vector3 &pos) const;
 		bool GetVertexPosition(const ModelSubMesh &subMesh,uint32_t vertexId,Vector3 &pos) const;
 
-		void SetBindPose(const Frame &frame);
-		const Frame *GetBindPose() const;
+		void SetBindPose(const std::shared_ptr<pragma::animation::AnimatedPose> &bindPose);
+		const pragma::animation::AnimatedPose *GetBindPose() const;
+
+		animation::AnimationPlayer *GetBaseAnimationPlayer();
+		const animation::AnimationPlayer *GetBaseAnimationPlayer() const {return const_cast<BaseSkAnimatedComponent*>(this)->GetBaseAnimationPlayer();}
+		animation::AnimationPlayer *GetLayeredAnimationPlayer(animation::LayeredAnimationSlot slot);
+		const animation::AnimationPlayer *GetLayeredAnimationPlayer(animation::LayeredAnimationSlot slot) const {return const_cast<BaseSkAnimatedComponent*>(this)->GetLayeredAnimationPlayer(slot);}
 
 		CallbackHandle BindAnimationEvent(AnimationEvent::Type eventId,const std::function<void(std::reference_wrapper<const AnimationEvent>)> &fCallback);
 
 		virtual void Save(udm::LinkedPropertyWrapper &udm) override;
 		using BaseEntityComponent::Load;
 	protected:
-		BaseAnimatedComponent(BaseEntity &ent);
+		BaseSkAnimatedComponent(BaseEntity &ent);
 		virtual void OnModelChanged(const std::shared_ptr<Model> &mdl);
 		virtual void Load(udm::LinkedPropertyWrapper &udm,uint32_t version) override;
-		virtual void ResetAnimation(const std::shared_ptr<Model> &mdl);
+		void ResetAnimation(const std::shared_ptr<Model> &mdl);
 		
 		struct DLLNETWORK AnimationBlendInfo
 		{
 			float scale = 0.f;
-			Animation *animation = nullptr;
+			animation::Animation *animation = nullptr;
 			Frame *frameSrc = nullptr; // Frame to blend from
 			Frame *frameDst = nullptr; // Frame to blend to
 		};
@@ -264,7 +234,7 @@ namespace pragma
 		struct AnimationEventQueueItem
 		{
 			int32_t animId = -1;
-			std::shared_ptr<Animation> animation = nullptr;
+			std::shared_ptr<animation::Animation> animation = nullptr;
 			int32_t lastFrame = -1;
 			uint32_t frameId = 0;
 		};
@@ -290,24 +260,17 @@ namespace pragma
 		};
 		//
 
-		bool MaintainAnimation(AnimationSlotInfo &animInfo,double dt,int32_t layeredSlot=-1);
-		virtual void ApplyAnimationBlending(AnimationSlotInfo &animInfo,double tDelta);
 		void HandleAnimationEvent(const AnimationEvent &ev);
-		void PlayLayeredAnimation(int slot,int animation,FPlayAnim flags,AnimationSlotInfo **animInfo);
-		void GetAnimationBlendController(Animation *anim,float cycle,std::array<AnimationBlendInfo,2> &bcFrames,float *blendScale) const;
-		Frame *GetPreviousAnimationBlendFrame(AnimationSlotInfo &animInfo,double tDelta,float &blendScale);
+		void PlayLayeredAnimation(int slot,int animation,FPlayAnim flags);
 
 		// Animations
-		void TransformBoneFrames(std::vector<umath::Transform> &bonePoses,std::vector<Vector3> *boneScales,Animation &anim,Frame *frameBlend,bool bAdd=true);
-		void TransformBoneFrames(std::vector<umath::Transform> &tgt,std::vector<Vector3> *boneScales,const std::shared_ptr<Animation> &anim,std::vector<umath::Transform> &add,std::vector<Vector3> *addScales,bool bAdd=true);
+		void TransformBoneFrames(std::vector<umath::Transform> &bonePoses,std::vector<Vector3> *boneScales,animation::Animation &anim,Frame *frameBlend,bool bAdd=true);
+		void TransformBoneFrames(std::vector<umath::Transform> &tgt,std::vector<Vector3> *boneScales,const std::shared_ptr<animation::Animation> &anim,std::vector<umath::Transform> &add,std::vector<Vector3> *addScales,bool bAdd=true);
 		//
 
-		std::unordered_map<uint32_t,AnimationSlotInfo> m_animSlots = {};
-		AnimationSlotInfo m_baseAnim = {};
-
 		Vector3 m_animDisplacement = {};
-		std::vector<umath::ScaledTransform> m_bones = {};
-		std::vector<umath::ScaledTransform> m_processedBones = {}; // Bone positions / rotations in entity space
+		pragma::animation::AnimatedPose m_currentPose = {};
+		pragma::animation::AnimatedPose m_currentPoseEntitySpace = {};
 	protected:
 		// We have to collect the animation events for the current frame and execute them after ALL animations have been completed (In case some events need to access animation data)
 		std::queue<AnimationEventQueueItem> m_animEventQueue = std::queue<AnimationEventQueueItem>{};
@@ -319,13 +282,15 @@ namespace pragma
 		std::vector<CustomAnimationEvent> *GetAnimationEvents(uint32_t animId,uint32_t frameId);
 
 		std::vector<TemplateAnimationEvent> m_animEventTemplates;
-		std::unordered_map<uint32_t,std::unordered_map<uint32_t,std::vector<CustomAnimationEvent>>> m_animEvents;
+		std::unordered_map<animation::LayeredAnimationSlot,std::unordered_map<uint32_t,std::vector<CustomAnimationEvent>>> m_animEvents;
+
+		animation::PAnimationPlayer m_baseAnimationPlayer = nullptr;
+		std::unordered_map<uint32_t,animation::PAnimationPlayer> m_layeredAnimationPlayers {};
 		
 		BoneId m_rootPoseBoneId = std::numeric_limits<BoneId>::max();
 		StateFlags m_stateFlags = StateFlags::AbsolutePosesDirty;
-		std::shared_ptr<const Frame> m_bindPose = nullptr;
+		std::shared_ptr<pragma::animation::AnimatedPose> m_bindPose = nullptr;
 		std::unordered_map<unsigned int,float> m_blendControllers = {};
-		util::PFloatProperty m_playbackRate = nullptr;
 
 		std::unordered_map<AnimationEvent::Type,CallbackHandle> m_boundAnimEvents;
 	};
@@ -342,39 +307,14 @@ namespace pragma
 		const Quat *rot;
 		const Vector3 *scale;
 	};
-	struct DLLNETWORK CEOnAnimationComplete
-		: public ComponentEvent
-	{
-		CEOnAnimationComplete(int32_t animation,Activity activity);
-		virtual void PushArguments(lua_State *l) override;
-		int32_t animation;
-		Activity activity;
-	};
 	struct DLLNETWORK CELayeredAnimationInfo
 		: public ComponentEvent
 	{
-		CELayeredAnimationInfo(int32_t slot,int32_t animation,Activity activity);
+		CELayeredAnimationInfo(animation::LayeredAnimationSlot slot,animation::AnimationId animation,Activity activity);
 		virtual void PushArguments(lua_State *l) override;
-		int32_t slot;
-		int32_t animation;
+		animation::LayeredAnimationSlot slot;
+		animation::AnimationId animation;
 		Activity activity;
-	};
-	struct DLLNETWORK CEHandleAnimationEvent
-		: public ComponentEvent
-	{
-		CEHandleAnimationEvent(const AnimationEvent &animationEvent);
-		virtual void PushArguments(lua_State *l) override;
-		void PushArgumentVariadic(lua_State *l);
-		const AnimationEvent &animationEvent;
-	};
-	struct DLLNETWORK CEOnPlayAnimation
-		: public ComponentEvent
-	{
-		CEOnPlayAnimation(int32_t previousAnimation,int32_t animation,pragma::FPlayAnim flags);
-		virtual void PushArguments(lua_State *l) override;
-		int32_t previousAnimation;
-		int32_t animation;
-		pragma::FPlayAnim flags;
 	};
 	struct DLLNETWORK CEOnPlayActivity
 		: public ComponentEvent
@@ -387,66 +327,55 @@ namespace pragma
 	struct DLLNETWORK CEOnPlayLayeredActivity
 		: public ComponentEvent
 	{
-		CEOnPlayLayeredActivity(int slot,Activity activity,FPlayAnim flags);
+		CEOnPlayLayeredActivity(animation::LayeredAnimationSlot slot,Activity activity,FPlayAnim flags);
 		virtual void PushArguments(lua_State *l) override;
-		int slot;
+		animation::LayeredAnimationSlot slot;
 		Activity activity;
 		FPlayAnim flags;
 	};
-	struct DLLNETWORK CEOnPlayLayeredAnimation
-		: public CEOnPlayAnimation
+	struct DLLNETWORK CESkelOnPlayAnimation
+		: public ComponentEvent
 	{
-		CEOnPlayLayeredAnimation(int32_t slot,int32_t previousAnimation,int32_t animation,pragma::FPlayAnim flags);
+		CESkelOnPlayAnimation(animation::AnimationId prevAnim,animation::AnimationId animation,pragma::FPlayAnim flags);
 		virtual void PushArguments(lua_State *l) override;
-		int32_t slot;
+		animation::AnimationId previousAnimation = animation::INVALID_ANIMATION;
+		animation::AnimationId animation;
+		pragma::FPlayAnim flags;
+	};
+	struct DLLNETWORK CEOnPlayLayeredAnimation
+		: public CESkelOnPlayAnimation
+	{
+		CEOnPlayLayeredAnimation(animation::LayeredAnimationSlot slot,animation::AnimationId previousAnimation,animation::AnimationId animation,pragma::FPlayAnim flags);
+		virtual void PushArguments(lua_State *l) override;
+		animation::LayeredAnimationSlot slot;
 	};
 	struct DLLNETWORK CEOnStopLayeredAnimation
 		: public ComponentEvent
 	{
-		CEOnStopLayeredAnimation(int32_t slot,BaseAnimatedComponent::AnimationSlotInfo &slotInfo);
+		CEOnStopLayeredAnimation(animation::LayeredAnimationSlot slot);
 		virtual void PushArguments(lua_State *l) override;
-		int32_t slot;
-		BaseAnimatedComponent::AnimationSlotInfo &slotInfo;
+		animation::LayeredAnimationSlot slot;
 	};
 	struct DLLNETWORK CETranslateLayeredActivity
 		: public ComponentEvent
 	{
-		CETranslateLayeredActivity(int32_t &slot,Activity &activity,pragma::FPlayAnim &flags);
+		CETranslateLayeredActivity(animation::LayeredAnimationSlot &slot,Activity &activity,pragma::FPlayAnim &flags);
 		virtual void PushArguments(lua_State *l) override;
 		virtual uint32_t GetReturnCount() override;
 		virtual void HandleReturnValues(lua_State *l) override;
-		int32_t &slot;
+		animation::LayeredAnimationSlot &slot;
 		Activity &activity;
 		pragma::FPlayAnim &flags;
-	};
-	struct DLLNETWORK CEOnAnimationStart
-		: public ComponentEvent
-	{
-		CEOnAnimationStart(int32_t animation,Activity activity,pragma::FPlayAnim flags);
-		virtual void PushArguments(lua_State *l) override;
-		int32_t animation;
-		Activity activity;
-		pragma::FPlayAnim flags;
 	};
 	struct DLLNETWORK CETranslateLayeredAnimation
 		: public ComponentEvent
 	{
-		CETranslateLayeredAnimation(int32_t &slot,int32_t &animation,pragma::FPlayAnim &flags);
+		CETranslateLayeredAnimation(animation::LayeredAnimationSlot &slot,animation::AnimationId &animation,pragma::FPlayAnim &flags);
 		virtual void PushArguments(lua_State *l) override;
 		virtual uint32_t GetReturnCount() override;
 		virtual void HandleReturnValues(lua_State *l) override;
-		int32_t &slot;
-		int32_t &animation;
-		pragma::FPlayAnim &flags;
-	};
-	struct DLLNETWORK CETranslateAnimation
-		: public ComponentEvent
-	{
-		CETranslateAnimation(int32_t &animation,pragma::FPlayAnim &flags);
-		virtual void PushArguments(lua_State *l) override;
-		virtual uint32_t GetReturnCount() override;
-		virtual void HandleReturnValues(lua_State *l) override;
-		int32_t &animation;
+		animation::LayeredAnimationSlot &slot;
+		animation::AnimationId &animation;
 		pragma::FPlayAnim &flags;
 	};
 	struct DLLNETWORK CETranslateActivity
@@ -457,31 +386,6 @@ namespace pragma
 		virtual uint32_t GetReturnCount() override;
 		virtual void HandleReturnValues(lua_State *l) override;
 		Activity &activity;
-	};
-	struct DLLNETWORK CEOnBlendAnimation
-		: public ComponentEvent
-	{
-		CEOnBlendAnimation(BaseAnimatedComponent::AnimationSlotInfo &slotInfo,Activity activity,std::vector<umath::Transform> &bonePoses,std::vector<Vector3> *boneScales);
-		virtual void PushArguments(lua_State *l) override;
-		BaseAnimatedComponent::AnimationSlotInfo &slotInfo;
-		Activity activity;
-		std::vector<umath::Transform> &bonePoses;
-		std::vector<Vector3> *boneScales;
-	};
-	struct DLLNETWORK CEMaintainAnimations
-		: public ComponentEvent
-	{
-		CEMaintainAnimations(double deltaTime);
-		virtual void PushArguments(lua_State *l) override;
-		double deltaTime;
-	};
-	struct DLLNETWORK CEMaintainAnimation
-		: public ComponentEvent
-	{
-		CEMaintainAnimation(BaseAnimatedComponent::AnimationSlotInfo &slotInfo,double deltaTime);
-		virtual void PushArguments(lua_State *l) override;
-		BaseAnimatedComponent::AnimationSlotInfo &slotInfo;
-		double deltaTime;
 	};
 	struct DLLNETWORK CEMaintainAnimationMovement
 		: public ComponentEvent
@@ -498,6 +402,6 @@ namespace pragma
 		bool shouldUpdate = true;
 	};
 };
-REGISTER_BASIC_BITWISE_OPERATORS(pragma::BaseAnimatedComponent::StateFlags)
+REGISTER_BASIC_BITWISE_OPERATORS(pragma::BaseSkAnimatedComponent::StateFlags)
 
 #endif

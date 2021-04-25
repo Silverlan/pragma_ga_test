@@ -19,6 +19,7 @@
 #include "pragma/lua/classes/ldef_surface_material.h"
 #include "pragma/lua/classes/lanimation.h"
 #include "pragma/model/animation/play_animation_flags.hpp"
+#include "pragma/entities/components/animated_component.hpp"
 
 bool Game::InjectEntityEvent(pragma::BaseEntityComponent &component,uint32_t eventId,int32_t argsIdx) {return InvokeEntityEvent(component,eventId,argsIdx,true);}
 bool Game::BroadcastEntityEvent(pragma::BaseEntityComponent &component,uint32_t eventId,int32_t argsIdx) {return InvokeEntityEvent(component,eventId,argsIdx,false);}
@@ -133,7 +134,7 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT)
+	else if(eventId == pragma::AnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT)
 	{
 		AnimationEvent ev {};
 
@@ -154,7 +155,7 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_PLAY_ANIMATION)
+	else if(eventId == pragma::AnimatedComponent::EVENT_ON_PLAY_ANIMATION)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -171,13 +172,13 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		auto flags = static_cast<pragma::FPlayAnim>(Lua::CheckInt(l,-1));
 		Lua::Pop(l,1);
 
-		pragma::CEOnPlayAnimation evData {static_cast<int32_t>(previousAnimation),static_cast<int32_t>(animation),flags};
+		pragma::CESkelOnPlayAnimation evData {static_cast<pragma::animation::AnimationId>(previousAnimation),static_cast<pragma::animation::AnimationId>(animation),flags};
 		if(bInject)
 			component.InjectEvent(eventId,evData);
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_PLAY_LAYERED_ANIMATION)
+	else if(eventId == pragma::BaseSkAnimatedComponent::EVENT_ON_PLAY_LAYERED_ANIMATION)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -199,13 +200,13 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		auto flags = static_cast<pragma::FPlayAnim>(Lua::CheckInt(l,-1));
 		Lua::Pop(l,1);
 
-		pragma::CEOnPlayLayeredAnimation evData {static_cast<int32_t>(slot),static_cast<int32_t>(previousAnimation),static_cast<int32_t>(animation),flags};
+		pragma::CEOnPlayLayeredAnimation evData {static_cast<pragma::animation::LayeredAnimationSlot>(slot),static_cast<pragma::animation::AnimationId>(previousAnimation),static_cast<pragma::animation::AnimationId>(animation),flags};
 		if(bInject)
 			component.InjectEvent(eventId,evData);
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE)
+	else if(eventId == pragma::AnimatedComponent::EVENT_ON_ANIMATION_COMPLETE)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -223,7 +224,7 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_START || eventId == pragma::BaseAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_COMPLETE)
+	else if(eventId == pragma::BaseSkAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_START || eventId == pragma::BaseSkAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_COMPLETE)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -240,13 +241,13 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		auto activity = static_cast<Activity>(Lua::CheckInt(l,-1));
 		Lua::Pop(l,1);
 
-		pragma::CELayeredAnimationInfo evData {static_cast<int32_t>(slot),static_cast<int32_t>(animation),activity};
+		pragma::CELayeredAnimationInfo evData {static_cast<pragma::animation::LayeredAnimationSlot>(slot),static_cast<pragma::animation::AnimationId>(animation),activity};
 		if(bInject)
 			component.InjectEvent(eventId,evData);
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_ANIMATION_START)
+	else if(eventId == pragma::AnimatedComponent::EVENT_ON_ANIMATION_START)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -269,7 +270,7 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_BONE_TRANSFORM_CHANGED)
+	else if(eventId == pragma::BaseSkAnimatedComponent::EVENT_ON_BONE_TRANSFORM_CHANGED)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -297,7 +298,7 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_PLAY_ACTIVITY)
+	else if(eventId == pragma::BaseSkAnimatedComponent::EVENT_ON_PLAY_ACTIVITY)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -315,7 +316,7 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_ON_PLAY_LAYERED_ACTIVITY)
+	else if(eventId == pragma::BaseSkAnimatedComponent::EVENT_ON_PLAY_LAYERED_ACTIVITY)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);
@@ -332,13 +333,13 @@ bool Game::InvokeEntityEvent(pragma::BaseEntityComponent &component,uint32_t eve
 		auto flags = static_cast<pragma::FPlayAnim>(Lua::CheckInt(l,-1));
 		Lua::Pop(l,1);
 
-		pragma::CEOnPlayLayeredActivity evData {static_cast<int32_t>(slot),activity,flags};
+		pragma::CEOnPlayLayeredActivity evData {static_cast<pragma::animation::LayeredAnimationSlot>(slot),activity,flags};
 		if(bInject)
 			component.InjectEvent(eventId,evData);
 		else
 			component.BroadcastEvent(eventId,evData);
 	}
-	else if(eventId == pragma::BaseAnimatedComponent::EVENT_MAINTAIN_ANIMATIONS)
+	else if(eventId == pragma::AnimatedComponent::EVENT_MAINTAIN_ANIMATIONS)
 	{
 		Lua::PushInt(l,1);
 		Lua::GetTableValue(l,argsIdx);

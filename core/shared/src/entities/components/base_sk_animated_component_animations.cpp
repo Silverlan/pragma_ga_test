@@ -6,7 +6,7 @@
  */
 
 #include "stdafx_shared.h"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
@@ -14,13 +14,13 @@
 
 using namespace pragma;
 
-void BaseAnimatedComponent::MaintainAnimationMovement(const Vector3 &disp)
+void BaseSkAnimatedComponent::MaintainAnimationMovement(const Vector3 &disp)
 {
 	CEMaintainAnimationMovement evData {disp};
 	InvokeEventCallbacks(EVENT_MAINTAIN_ANIMATION_MOVEMENT,evData);
 }
 
-void BaseAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos,const Quat &rot,const Vector3 &scale)
+void BaseSkAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos,const Quat &rot,const Vector3 &scale)
 {
 	auto pose = GetEntity().GetPose();
 	pose = pose.GetInverse();
@@ -32,7 +32,7 @@ void BaseAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &p
 		pPhysComponent->WorldToOrigin(&npos,&nrot);
 	SetLocalBonePosition(boneId,npos,nrot,scale);
 }
-void BaseAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos,const Quat &rot)
+void BaseSkAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos,const Quat &rot)
 {
 	auto pose = GetEntity().GetPose();
 	pose = pose.GetInverse();
@@ -44,7 +44,7 @@ void BaseAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &p
 		pPhysComponent->WorldToOrigin(&npos,&nrot);
 	SetLocalBonePosition(boneId,npos,nrot);
 }
-void BaseAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos)
+void BaseSkAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &pos)
 {
 	auto pose = GetEntity().GetPose();
 	pose = pose.GetInverse();
@@ -55,7 +55,7 @@ void BaseAnimatedComponent::SetGlobalBonePosition(UInt32 boneId,const Vector3 &p
 		pPhysComponent->WorldToOrigin(&npos);
 	SetLocalBonePosition(boneId,npos);
 }
-void BaseAnimatedComponent::SetGlobalBoneRotation(UInt32 boneId,const Quat &rot)
+void BaseSkAnimatedComponent::SetGlobalBoneRotation(UInt32 boneId,const Quat &rot)
 {
 	auto pose = GetEntity().GetPose();
 	pose = pose.GetInverse();

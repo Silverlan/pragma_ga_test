@@ -12,9 +12,11 @@
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/velocity_component.hpp"
 #include "pragma/model/model.h"
+#include "pragma/model/animation/animation.hpp"
+#include "pragma/model/animation/animation_player.hpp"
 #include "pragma/physics/raytraces.h"
 #include "pragma/physics/controller.hpp"
 #include "pragma/physics/shape.hpp"
@@ -134,7 +136,7 @@ const Vector3 &BaseAIComponent::GetMoveTarget() const {return m_moveInfo.moveTar
 
 bool BaseAIComponent::IsMoving() const
 {
-	auto animComponent = GetEntity().GetAnimatedComponent();
+	auto animComponent = GetEntity().GetSkAnimatedComponent();
 	return (animComponent.valid() && animComponent->GetActivity() == m_moveInfo.moveActivity) ? true : false;
 }
 
@@ -145,7 +147,7 @@ BaseAIComponent::MoveResult BaseAIComponent::MoveTo(const Vector3 &pos,const Mov
 		return BaseAIComponent::MoveResult::TargetReached;
 	auto moveActivity = Activity::Invalid;
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	if(animComponent.valid())
 	{
 		moveActivity = animComponent->TranslateActivity(info.activity);
@@ -200,7 +202,7 @@ float BaseAIComponent::GetMaxSpeed(bool bUseAnimSpeedIfAvailable) const
 {
 	auto speed = 0.f;
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	if(animComponent.expired())
 		return speed;
 	if(GetMoveSpeed(animComponent->GetAnimation(),speed) == true)
@@ -280,34 +282,21 @@ void BaseAIComponent::ClearMoveSpeed(const std::string &name)
 }
 Activity BaseAIComponent::GetMoveActivity() const {return m_moveInfo.moveActivity;}
 
-void BaseAIComponent::BlendAnimationMovement(std::vector<umath::Transform> &bonePoses,std::vector<Vector3> *boneScales)
+void BaseAIComponent::BlendAnimationMovement(animation::AnimatedPose &pose)
 {
-	if(m_seqIdle == -1)
+	if(!m_idleAnimPose)
 		return;
 	//auto act = m_entity->GetActivity();
 	//if(act != m_moveActivity) // Doesn't work clientside (Would have to transfer move activity)
 	//	return;
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	auto &hMdl = GetEntity().GetModel();
 	if(animComponent.expired() || hMdl == nullptr/* || animComponent->GetActivity() != m_moveInfo.moveActivity*/)
-		return;
-	auto *anim = animComponent->GetAnimationObject();
-	// Animation movement blending does not work well with special movement animations (e.g. leaping),
-	// so we exclude all non-looping movement animations here. (Also see CCharacterComponent::Initialize).
-	// If the result isn't satisfactory, alternatively enable the check for the moveActivity above instead.
-	// However, this requires sending the moveActivity from the server to the clients (snapshots?)
-	if(anim == nullptr || anim->HasFlag(FAnim::Loop) == false)
 		return;
 	auto moveAnimId = animComponent->GetAnimation();
 	auto moveAnim = hMdl->GetAnimation(moveAnimId);
 	if(moveAnim == nullptr || m_animMoveInfo.blend == false)
-		return;
-	auto animIdle = hMdl->GetAnimation(m_seqIdle);
-	if(animIdle == nullptr)
-		return;
-	auto frame = animIdle->GetFrame(0);
-	if(frame == NULL)
 		return;
 	auto pVelComponent = ent.GetComponent<pragma::VelocityComponent>();
 	auto vel = pVelComponent.valid() ? pVelComponent->GetVelocity() : Vector3{};
@@ -323,14 +312,7 @@ void BaseAIComponent::BlendAnimationMovement(std::vector<umath::Transform> &bone
 			scale = 0.f;
 	}
 	m_lastMovementBlendScale = scale = umath::approach(m_lastMovementBlendScale,scale,0.05f);
-	auto &dstBonePoses = frame->GetBoneTransforms();
-	auto &dstBoneScales = frame->GetBoneScales();
-	animComponent->BlendBonePoses(
-		bonePoses,boneScales,
-		dstBonePoses,&dstBoneScales,
-		bonePoses,boneScales,
-		*anim,scale
-	);
+	pose.Lerp(m_idleAnimPose,scale);
 }
 
 void BaseAIComponent::OnPathDestinationReached()
@@ -353,9 +335,9 @@ void BaseAIComponent::StopMoving()
 	m_moveInfo.moveDir = {};
 	m_moveInfo.moving = false;
 	m_moveInfo.moveSpeed = nullptr;
-	auto pAnimComponent = GetEntity().GetAnimatedComponent();
+	auto pAnimComponent = GetEntity().GetSkAnimatedComponent();
 	if(pAnimComponent.valid())
-		static_cast<BaseAnimatedComponent*>(pAnimComponent.get())->PlayActivity(Activity::Idle,pragma::FPlayAnim::Default);
+		static_cast<BaseSkAnimatedComponent*>(pAnimComponent.get())->PlayActivity(Activity::Idle,pragma::FPlayAnim::Default);
 }
 
 void BaseAIComponent::SetPathNodeIndex(uint32_t nodeIdx,const Vector3 &prevPos)
@@ -601,7 +583,7 @@ Vector2 BaseAIComponent::CalcMovementSpeed() const
 	if(pPhysComponent && (pPhysComponent->GetMoveType() != MOVETYPE::WALK || pPhysComponent->IsOnGround() == false))
 		return {pVelComponent.valid() ? uvec::length(pVelComponent->GetVelocity()) : 0.f,0.f};
 	auto speed = 0.f;
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	if(animComponent.expired())
 		return {speed,0.f};
 	if(GetMoveSpeed(animComponent->GetAnimation(),speed))
@@ -630,16 +612,18 @@ Vector3 BaseAIComponent::CalcMovementDirection(const Vector3&,const Vector3&) co
 	if(m_animMoveInfo.moving == true)
 	{
 		auto bMoveForward = true;
-		auto animComponent = ent.GetAnimatedComponent();
+		auto animComponent = ent.GetSkAnimatedComponent();
 		auto &hMdl = GetEntity().GetModel();
 		if(hMdl != nullptr && animComponent.valid())
 		{
 			auto anim = hMdl->GetAnimation(animComponent->GetAnimation());
 			if(anim != nullptr)
 			{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 				auto *bc = anim->GetBlendController();
 				if(ent.IsCharacter() && bc->controller == ent.GetCharacterComponent()->GetMoveController())
 					bMoveForward = false; // Animation has a move blend-controller, which means it probably allows sideways or backwards movement
+#endif
 			}
 		}
 		if(bMoveForward == true)

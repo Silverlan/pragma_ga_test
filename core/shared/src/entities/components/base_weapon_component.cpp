@@ -13,7 +13,7 @@
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_shooter_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_render_component.hpp"
 #include "pragma/entities/components/base_ownable_component.hpp"
 #include "pragma/util/bulletinfo.h"
@@ -274,7 +274,7 @@ void BaseWeaponComponent::OnEntitySpawn() {BaseEntityComponent::OnEntitySpawn();
 void BaseWeaponComponent::Deploy()
 {
 	m_bDeployed = true;
-	auto animComponent = GetEntity().GetAnimatedComponent();
+	auto animComponent = GetEntity().GetSkAnimatedComponent();
 	if(animComponent.valid())
 		animComponent->PlayActivity(Activity::VmIdle);
 

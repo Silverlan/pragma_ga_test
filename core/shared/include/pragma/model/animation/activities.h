@@ -11,7 +11,7 @@
 #include "pragma/networkdefinitions.h"
 #include <mathutil/umath.h>
 
-enum class DLLNETWORK Activity : uint16_t
+enum class Activity : uint16_t
 {
 	Invalid,
 

@@ -6,15 +6,16 @@
  */
 
 #include "stdafx_shared.h"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
+#include "pragma/model/animation/animated_pose.hpp"
 #include "pragma/model/model.h"
 #include "pragma/model/modelmesh.h"
 
 using namespace pragma;
 
-bool BaseAnimatedComponent::GetVertexPosition(uint32_t meshGroupId,uint32_t meshId,uint32_t subMeshId,uint32_t vertexId,Vector3 &pos) const
+bool BaseSkAnimatedComponent::GetVertexPosition(uint32_t meshGroupId,uint32_t meshId,uint32_t subMeshId,uint32_t vertexId,Vector3 &pos) const
 {
 	auto &hMdl = GetEntity().GetModel();
 	if(hMdl == nullptr)
@@ -32,7 +33,7 @@ bool BaseAnimatedComponent::GetVertexPosition(uint32_t meshGroupId,uint32_t mesh
 	auto &subMesh = subMeshes.at(subMeshId);
 	return GetVertexPosition(*subMesh,vertexId,pos);
 }
-std::optional<Mat4> BaseAnimatedComponent::GetVertexTransformMatrix(const ModelSubMesh &subMesh,uint32_t vertexId) const
+std::optional<Mat4> BaseSkAnimatedComponent::GetVertexTransformMatrix(const ModelSubMesh &subMesh,uint32_t vertexId) const
 {
 	auto &verts = const_cast<ModelSubMesh&>(subMesh).GetVertices();
 	if(vertexId >= verts.size())
@@ -50,23 +51,20 @@ std::optional<Mat4> BaseAnimatedComponent::GetVertexTransformMatrix(const ModelS
 		for(auto i=0u;i<4u;++i)
 		{
 			auto boneId = vw.boneIds[i];
-			if(boneId == -1 || boneId >= processedBones.size())
+			if(boneId == -1 || boneId >= processedBones.GetTransforms().size())
 				continue;
 			auto weight = vw.weights[i];
-			auto &t = processedBones.at(boneId);
+			auto &t = processedBones.GetTransforms().at(boneId);
 
 			//
 			auto &pos = t.GetOrigin();
 
 			auto &orientation = t.GetRotation();
 			auto &scale = t.GetScale();
-
-			auto *posBind = bindPose->GetBonePosition(boneId);
-			auto *rotBind = bindPose->GetBoneOrientation(boneId);
-			if(posBind != nullptr && rotBind != nullptr)
+			auto *bindTransform = bindPose->GetTransform(boneId);
+			if(bindTransform)
 			{
-				umath::Transform tBindPose {*posBind,*rotBind};
-				tBindPose = tBindPose.GetInverse();
+				auto tBindPose = bindTransform->GetInverse();
 
 				auto mat = t.ToMatrix() *tBindPose.ToMatrix();
 				//auto mat = (t *tBindPose).ToMatrix();
@@ -80,7 +78,7 @@ std::optional<Mat4> BaseAnimatedComponent::GetVertexTransformMatrix(const ModelS
 		return umat::identity();
 	return transformMatrix;
 }
-bool BaseAnimatedComponent::GetLocalVertexPosition(const ModelSubMesh &subMesh,uint32_t vertexId,Vector3 &pos,const std::optional<Vector3> &vertexOffset) const
+bool BaseSkAnimatedComponent::GetLocalVertexPosition(const ModelSubMesh &subMesh,uint32_t vertexId,Vector3 &pos,const std::optional<Vector3> &vertexOffset) const
 {
 	auto transformMatrix = GetVertexTransformMatrix(subMesh,vertexId);
 	if(transformMatrix.has_value() == false)
@@ -91,7 +89,7 @@ bool BaseAnimatedComponent::GetLocalVertexPosition(const ModelSubMesh &subMesh,u
 	pos = Vector3{vpos.x,vpos.y,vpos.z} /vpos.w;
 	return true;
 }
-bool BaseAnimatedComponent::GetVertexPosition(const ModelSubMesh &subMesh,uint32_t vertexId,Vector3 &pos) const
+bool BaseSkAnimatedComponent::GetVertexPosition(const ModelSubMesh &subMesh,uint32_t vertexId,Vector3 &pos) const
 {
 	auto &ent = GetEntity();
 	auto &hMdl = ent.GetModel();

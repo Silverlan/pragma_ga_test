@@ -15,7 +15,8 @@
 #include "pragma/lua/classes/lproperty.hpp"
 #include "pragma/lua/lua_entity_component.hpp"
 #include "pragma/model/animation/animation_event.h"
-#include "pragma/model/animation/animation.h"
+#include "pragma/model/animation/animation.hpp"
+#include "pragma/model/animation/animated_pose.hpp"
 #include "pragma/lua/l_entity_handles.hpp"
 #include <sharedutils/util_weak_handle.hpp>
 #include <mathutil/plane.hpp>
@@ -3223,6 +3224,7 @@ namespace Lua
 	template<class TLuaClass,class THandle>
 		void register_base_animated_component_methods(lua_State *l,TLuaClass &def)
 	{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 		def.def("PlayAnimation",static_cast<void(*)(lua_State*,THandle&,int,uint32_t)>([](lua_State *l,THandle &hAnim,int anim,uint32_t flags) {
 			pragma::Lua::check_component(l,hAnim);
 			hAnim->PlayAnimation(anim,static_cast<pragma::FPlayAnim>(flags));
@@ -3248,7 +3250,7 @@ namespace Lua
 			auto *anim = hAnim->GetAnimationObject();
 			if(anim == nullptr)
 				return;
-			Lua::Push<std::shared_ptr<::Animation>>(l,anim->shared_from_this());
+			Lua::Push<std::shared_ptr<pragma::Animation>>(l,anim->shared_from_this());
 		}));
 		def.def("PlayActivity",static_cast<void(*)(lua_State*,THandle&,int,uint32_t)>([](lua_State *l,THandle &hAnim,int activity,uint32_t flags) {
 			pragma::Lua::check_component(l,hAnim);
@@ -3759,6 +3761,7 @@ namespace Lua
 		def.add_static_constant("FPLAYANIM_SNAP_TO",umath::to_integral(pragma::FPlayAnim::SnapTo));
 		def.add_static_constant("FPLAYANIM_DEFAULT",umath::to_integral(pragma::FPlayAnim::Default));
 		def.add_static_constant("FPLAYANIM_LOOP",umath::to_integral(pragma::FPlayAnim::Loop));
+#endif
 	}
 
 	template<class TLuaClass,class THandle>

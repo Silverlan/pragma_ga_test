@@ -7,7 +7,7 @@
 
 #include "stdafx_shared.h"
 #include "pragma/entities/components/base_time_scale_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_io_component.hpp"
 #include "pragma/entities/baseentity_events.hpp"
 #include <sharedutils/datastream.h>
@@ -48,12 +48,14 @@ float BaseTimeScaleComponent::GetEffectiveTimeScale() const {return GetEntity().
 void BaseTimeScaleComponent::OnEntityComponentAdded(BaseEntityComponent &component)
 {
 	BaseEntityComponent::OnEntityComponentAdded(component);
-	auto *pAnimatedComponent = dynamic_cast<BaseAnimatedComponent*>(&component);
+	auto *pAnimatedComponent = dynamic_cast<BaseSkAnimatedComponent*>(&component);
 	if(pAnimatedComponent != nullptr)
 	{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 		FlagCallbackForRemoval(pAnimatedComponent->GetPlaybackRateProperty()->AddModifier([this](std::reference_wrapper<float> val) {
 			val.get() *= GetEffectiveTimeScale();
 		}),CallbackType::Component,&component);
+#endif
 	}
 }
 void BaseTimeScaleComponent::Save(udm::LinkedPropertyWrapper &udm)

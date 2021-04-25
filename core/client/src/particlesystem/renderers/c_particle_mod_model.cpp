@@ -66,7 +66,7 @@ void CParticleRendererModel::Initialize(pragma::CParticleSystemComponent &pSyste
 	}
 
 	auto fCreateAnimatedComponent = [this,&pSystem]() {
-		return pSystem.GetEntity().AddComponent<pragma::CAnimatedComponent>(true);
+		return pSystem.GetEntity().AddComponent<pragma::CSkAnimatedComponent>(true);
 	};
 
 	if(s_rendererCount++ == 0 && pragma::ShaderGameWorldLightingPass::DESCRIPTOR_SET_INSTANCE.IsValid())

@@ -8,7 +8,7 @@
 #include "stdafx_shared.h"
 #include "pragma/entities/components/base_model_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/model/model.h"
 #include "pragma/model/modelmanager.h"
@@ -106,7 +106,7 @@ bool BaseModelComponent::GetAttachment(unsigned int attID,Vector3 *pos,Quat *rot
 		return false;
 	umath::Transform pose {};
 	// ent.GetPose(pose);
-	auto animC = ent.GetAnimatedComponent();
+	auto animC = ent.GetSkAnimatedComponent();
 	if(animC.valid())
 	{
 		Quat rotBone;
@@ -341,7 +341,7 @@ bool BaseModelComponent::GetHitboxBounds(uint32_t boneId,Vector3 &min,Vector3 &m
 	auto scale = pTrComponent ? pTrComponent->GetScale() : Vector3{1.f,1.f,1.f};
 	min *= scale;
 	max *= scale;
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	if(animComponent.valid() && animComponent->GetGlobalBonePosition(boneId,origin,rot) == false)
 	{
 		auto pPhysComponent = ent.GetPhysicsComponent();

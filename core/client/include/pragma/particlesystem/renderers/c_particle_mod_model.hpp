@@ -34,7 +34,7 @@ protected:
 
 	struct ParticleModelComponent
 	{
-		util::WeakHandle<pragma::CAnimatedComponent> animatedComponent;
+		util::WeakHandle<pragma::CSkAnimatedComponent> animatedComponent;
 		std::shared_ptr<prosper::IDescriptorSetGroup> instanceDescSetGroupAnimated;
 	};
 	ParticleModelComponent &GetParticleComponent(uint32_t particleIdx);

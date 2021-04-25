@@ -44,10 +44,12 @@ void CParticleSystemComponent::Initialize()
 		auto &kvData = static_cast<CEKeyValueData&>(evData.get());
 		return HandleKeyValue(kvData.key,kvData.value);
 	});
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	BindEvent(CAnimatedComponent::EVENT_SHOULD_UPDATE_BONES,[this](std::reference_wrapper<ComponentEvent> evData) -> util::EventReply {
 		static_cast<CEShouldUpdateBones&>(evData.get()).shouldUpdate = IsActive();
 		return util::EventReply::Handled;
 	});
+#endif
 
 	auto &ent = GetEntity();
 	auto pTrComponent = ent.GetTransformComponent();

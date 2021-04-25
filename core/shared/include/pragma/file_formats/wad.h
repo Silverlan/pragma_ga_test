@@ -8,16 +8,16 @@
 #define __WAD_H__
 #include "pragma/networkdefinitions.h"
 #include "pragma/file_formats/wdf.h"
-#include "pragma/model/animation/animation.h"
 
+namespace pragma {class Animation;};
 class DLLNETWORK FWAD
 	: FWDF
 {
 private:
 	
 public:
-	std::shared_ptr<Animation> ReadData(unsigned short version,VFilePtr f);
-	std::shared_ptr<Animation> Load(unsigned short version,const char *animation);
+	std::shared_ptr<pragma::Animation> ReadData(unsigned short version,VFilePtr f);
+	std::shared_ptr<pragma::Animation> Load(unsigned short version,const char *animation);
 };
 
 #endif

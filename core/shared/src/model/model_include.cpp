@@ -10,6 +10,7 @@
 #include "pragma/model/modelmesh.h"
 #include "pragma/physics/collisionmesh.h"
 #pragma optimize("",off)
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 static void subtract_frame(Frame &frame,const Frame &frameToSubtract)
 {
 	auto numBones = frameToSubtract.GetBoneCount(); // TODO
@@ -38,9 +39,10 @@ static void add_frame(Frame &frame,const Frame &frameToAdd)
 		pos += *frameToAdd.GetBonePosition(i);
 	}
 }
-
+#endif
 void Model::Merge(const Model &other,MergeFlags flags)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	Con::cout<<"Merging model '"<<other.GetName()<<"' into '"<<GetName()<<"'..."<<Con::endl;
 	std::vector<std::size_t> boneTranslations; // 'other' bone Id to 'this' bone Id
 	auto bMerged = false;
@@ -376,5 +378,6 @@ void Model::Merge(const Model &other,MergeFlags flags)
 			}
 		}
 	}
+#endif
 }
 #pragma optimize("",on)

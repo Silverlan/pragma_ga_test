@@ -46,7 +46,9 @@ void CViewBodyComponent::Initialize()
 		pRenderComponent->SetRenderMode(RenderMode::View);
 		pRenderComponent->SetCastShadows(false);
 	}
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	ent.AddComponent<CAnimatedComponent>();
+#endif
 }
 luabind::object CViewBodyComponent::InitializeLuaObject(lua_State *l) {return BaseEntityComponent::InitializeLuaObject<CViewBodyComponentHandleWrapper>(l);}
 

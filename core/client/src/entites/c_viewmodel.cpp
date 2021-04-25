@@ -17,6 +17,7 @@
 #include "pragma/entities/components/c_model_component.hpp"
 #include "pragma/lua/c_lentity_handles.hpp"
 #include <pragma/model/model.h>
+#include <pragma/model/animation/animation.hpp>
 #include <pragma/entities/entity_component_system_t.hpp>
 
 using namespace pragma;
@@ -39,7 +40,8 @@ void CViewModelComponent::Initialize()
 		}
 		return util::EventReply::Unhandled;
 	});
-	BindEvent(CAnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	BindEvent(CSkAnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		auto &ent = GetEntity();
 		auto pAttachableComponent = ent.GetComponent<CAttachableComponent>();
 		auto *parent = pAttachableComponent.valid() ? pAttachableComponent->GetParent() : nullptr;
@@ -55,7 +57,8 @@ void CViewModelComponent::Initialize()
 		}
 		return util::EventReply::Handled; // Always overwrite
 	});
-	BindEventUnhandled(CAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+#endif
+	BindEventUnhandled(CSkAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		auto &ent = GetEntity();
 		auto &hMdl = ent.GetModel();
 		if(hMdl != nullptr)
@@ -64,11 +67,11 @@ void CViewModelComponent::Initialize()
 			if(anim != nullptr && anim->HasFlag(FAnim::Loop) == true)
 				return;
 		}
-		auto animComponent = ent.GetAnimatedComponent();
+		auto animComponent = ent.GetSkAnimatedComponent();
 		if(animComponent.valid())
 			animComponent->PlayActivity(Activity::VmIdle);
 	});
-	BindEventUnhandled(CAnimatedComponent::EVENT_ON_ANIMATION_RESET,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+	BindEventUnhandled(CSkAnimatedComponent::EVENT_ON_ANIMATION_RESET,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		auto *wepC = GetWeapon();
 		if(wepC)
 			wepC->UpdateDeployState();
@@ -86,7 +89,7 @@ void CViewModelComponent::Initialize()
 	auto pMdlComponent = ent.AddComponent<CModelComponent>();
 	if(pMdlComponent.valid())
 		pMdlComponent->SetModel("weapons/v_soldier.wmd");
-	ent.AddComponent<CAnimatedComponent>();
+	ent.AddComponent<CSkAnimatedComponent>();
 }
 
 static auto cvViewFov = GetClientConVar("cl_fov_viewmodel");

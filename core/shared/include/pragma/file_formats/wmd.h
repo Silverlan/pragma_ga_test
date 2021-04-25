@@ -86,6 +86,7 @@ struct DLLNETWORK FWMDVertex
 	std::unordered_map<unsigned long long,float> weights;
 };
 
+struct Bone;
 class DLLNETWORK FWMD
 	: FWDF
 {

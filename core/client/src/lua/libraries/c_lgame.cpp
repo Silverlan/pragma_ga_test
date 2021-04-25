@@ -85,6 +85,7 @@ static void update_vehicle(Vehicle_Car *vhc)
 enum Method {IK_JACOB_TRANS=0, IK_PURE_PSEUDO, IK_DLS, IK_SDLS , IK_DLS_SVD};
 #include <pragma/model/model.h>
 #include <pragma/lua/classes/ldef_quaternion.h>
+#ifdef ENABLE_DEPRECATED_PHYSICS
 static void get_local_bone_position(const std::function<Transform(uint32_t)> &fGetTransform,std::shared_ptr<Bone> &bone,const Vector3 &fscale={1.f,1.f,1.f},Vector3 *pos=nullptr,Quat *rot=nullptr,Vector3 *scale=nullptr)
 {
 	std::function<void(std::shared_ptr<Bone>&,Vector3*,Quat*,Vector3*)> apply;
@@ -126,7 +127,6 @@ static void get_local_bone_position(const std::shared_ptr<Model> &mdl,const std:
 	}
 }
 
-#ifdef ENABLE_DEPRECATED_PHYSICS
 #include <pragma/physics/shape.hpp>
 // Source: BenchmarkDemo.cpp from Bullet source code
 class RagDoll

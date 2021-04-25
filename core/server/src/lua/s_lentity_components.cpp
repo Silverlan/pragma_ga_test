@@ -371,8 +371,8 @@ void SGame::RegisterLuaEntityComponents(luabind::module_ &entsMod)
 	Lua::register_base_model_component_methods<luabind::class_<SModelHandle,BaseEntityComponentHandle>,SModelHandle>(l,defSModel);
 	entsMod[defSModel];
 
-	auto defSAnimated = luabind::class_<SAnimatedHandle,BaseEntityComponentHandle>("AnimatedComponent");
-	Lua::register_base_animated_component_methods<luabind::class_<SAnimatedHandle,BaseEntityComponentHandle>,SAnimatedHandle>(l,defSAnimated);
+	auto defSAnimated = luabind::class_<SSkAnimatedHandle,BaseEntityComponentHandle>("SkAnimatedComponent");
+	Lua::register_base_animated_component_methods<luabind::class_<SSkAnimatedHandle,BaseEntityComponentHandle>,SSkAnimatedHandle>(l,defSAnimated);
 	entsMod[defSAnimated];
 
 	auto defSTimeScale = luabind::class_<STimeScaleHandle,BaseEntityComponentHandle>("TimeScaleComponent");

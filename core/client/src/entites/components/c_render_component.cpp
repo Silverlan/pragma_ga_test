@@ -157,7 +157,7 @@ void CRenderComponent::Initialize()
 {
 	BaseRenderComponent::Initialize();
 
-	BindEventUnhandled(CAnimatedComponent::EVENT_ON_BONE_BUFFER_INITIALIZED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+	BindEventUnhandled(CSkAnimatedComponent::EVENT_ON_BONE_BUFFER_INITIALIZED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		UpdateBoneBuffer();
 	});
 	BindEventUnhandled(CColorComponent::EVENT_ON_COLOR_CHANGED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
@@ -330,8 +330,8 @@ void CRenderComponent::OnEntityComponentAdded(BaseEntityComponent &component)
 	}
 	else if(typeid(component) == typeid(pragma::CAttachableComponent))
 		m_attachableComponent = static_cast<CAttachableComponent*>(&component);
-	else if(typeid(component) == typeid(pragma::CAnimatedComponent))
-		m_animComponent = static_cast<CAnimatedComponent*>(&component);
+	else if(typeid(component) == typeid(pragma::CSkAnimatedComponent))
+		m_animComponent = static_cast<CSkAnimatedComponent*>(&component);
 	else if(typeid(component) == typeid(pragma::CLightMapReceiverComponent))
 		m_lightMapReceiverComponent = static_cast<CLightMapReceiverComponent*>(&component);
 }
@@ -340,7 +340,7 @@ void CRenderComponent::OnEntityComponentRemoved(BaseEntityComponent &component)
 	BaseRenderComponent::OnEntityComponentRemoved(component);
 	if(typeid(component) == typeid(pragma::CAttachableComponent))
 		m_attachableComponent = nullptr;
-	else if(typeid(component) == typeid(pragma::CAnimatedComponent))
+	else if(typeid(component) == typeid(pragma::CSkAnimatedComponent))
 		m_animComponent = nullptr;
 	else if(typeid(component) == typeid(pragma::CLightMapReceiverComponent))
 		m_lightMapReceiverComponent = nullptr;
@@ -377,14 +377,14 @@ void CRenderComponent::UpdateShouldDrawShadowState()
 }
 CModelComponent *CRenderComponent::GetModelComponent() const {return static_cast<CModelComponent*>(GetEntity().GetModelComponent());}
 CAttachableComponent *CRenderComponent::GetAttachableComponent() const {return m_attachableComponent;}
-CAnimatedComponent *CRenderComponent::GetAnimatedComponent() const {return m_animComponent;}
+CSkAnimatedComponent *CRenderComponent::GetSkAnimatedComponent() const {return m_animComponent;}
 CLightMapReceiverComponent *CRenderComponent::GetLightMapReceiverComponent() const {return m_lightMapReceiverComponent;}
 void CRenderComponent::SetRenderOffsetTransform(const umath::ScaledTransform &t) {m_renderOffset = t; SetRenderBufferDirty();}
 void CRenderComponent::ClearRenderOffsetTransform() {m_renderOffset = {}; SetRenderBufferDirty();}
 const umath::ScaledTransform *CRenderComponent::GetRenderOffsetTransform() const {return m_renderOffset.has_value() ? &*m_renderOffset : nullptr;}
 GameShaderSpecialization CRenderComponent::GetShaderPipelineSpecialization() const
 {
-	if(GetAnimatedComponent())
+	if(GetSkAnimatedComponent())
 		return GameShaderSpecialization::Animated;
 	if(GetLightMapReceiverComponent())
 		return GameShaderSpecialization::Lightmapped;
@@ -653,10 +653,10 @@ void CRenderComponent::UpdateBoneBuffer()
 	if(m_renderBuffer == nullptr)
 		return;
 	auto &ent = GetEntity();
-	auto pAnimComponent = ent.GetAnimatedComponent();
+	auto pAnimComponent = ent.GetSkAnimatedComponent();
 	if(pAnimComponent.expired())
 		return;
-	auto wpBoneBuffer = static_cast<pragma::CAnimatedComponent&>(*pAnimComponent).GetSwapBoneBuffer();
+	auto wpBoneBuffer = static_cast<pragma::CSkAnimatedComponent&>(*pAnimComponent).GetSwapBoneBuffer();
 	if(!wpBoneBuffer)
 		return;
 	m_renderDescSetGroup->SetBindingUniformBuffer(

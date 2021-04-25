@@ -41,7 +41,7 @@ public:
 	CBaseEntity();
 	void Construct(unsigned int idx,unsigned int clientIdx);
 
-	virtual util::WeakHandle<pragma::BaseAnimatedComponent> GetAnimatedComponent() const override;
+	virtual util::WeakHandle<pragma::BaseSkAnimatedComponent> GetSkAnimatedComponent() const override;
 	virtual util::WeakHandle<pragma::BaseWeaponComponent> GetWeaponComponent() const override;
 	virtual util::WeakHandle<pragma::BaseVehicleComponent> GetVehicleComponent() const override;
 	virtual util::WeakHandle<pragma::BaseAIComponent> GetAIComponent() const override;

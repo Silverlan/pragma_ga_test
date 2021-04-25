@@ -16,7 +16,7 @@
 #include "pragma/entities/components/base_health_component.hpp"
 #include "pragma/entities/components/base_sound_emitter_component.hpp"
 #include "pragma/entities/components/base_attachable_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/damageable_component.hpp"
 #include "pragma/entities/components/velocity_component.hpp"
 #include "pragma/entities/components/base_io_component.hpp"
@@ -297,61 +297,63 @@ Vector3 BaseEntity::GetAngularVelocity() const
 
 void BaseEntity::PlayAnimation(int32_t animation,pragma::FPlayAnim flags)
 {
-	auto *animC = static_cast<pragma::BaseAnimatedComponent*>(AddNetworkedComponent("animated").get());
+	auto *animC = static_cast<pragma::BaseSkAnimatedComponent*>(AddNetworkedComponent("animated").get());
 	if(animC == nullptr)
 		return;
 	animC->PlayAnimation(animation,flags);
 }
 void BaseEntity::PlayLayeredAnimation(int32_t slot,int32_t animation,pragma::FPlayAnim flags)
 {
-	auto *animC = static_cast<pragma::BaseAnimatedComponent*>(AddNetworkedComponent("animated").get());
+	auto *animC = static_cast<pragma::BaseSkAnimatedComponent*>(AddNetworkedComponent("animated").get());
 	if(animC == nullptr)
 		return;
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	animC->PlayLayeredAnimation(slot,animation,flags);
+#endif
 }
 bool BaseEntity::PlayActivity(Activity activity,pragma::FPlayAnim flags)
 {
-	auto *animC = static_cast<pragma::BaseAnimatedComponent*>(AddNetworkedComponent("animated").get());
+	auto *animC = static_cast<pragma::BaseSkAnimatedComponent*>(AddNetworkedComponent("animated").get());
 	if(animC == nullptr)
 		return false;
 	return animC->PlayActivity(activity,flags);
 }
 bool BaseEntity::PlayLayeredActivity(int32_t slot,Activity activity,pragma::FPlayAnim flags)
 {
-	auto *animC = static_cast<pragma::BaseAnimatedComponent*>(AddNetworkedComponent("animated").get());
+	auto *animC = static_cast<pragma::BaseSkAnimatedComponent*>(AddNetworkedComponent("animated").get());
 	if(animC == nullptr)
 		return false;
 	return animC->PlayLayeredActivity(slot,activity,flags);
 }
 bool BaseEntity::PlayLayeredAnimation(int32_t slot,std::string animation,pragma::FPlayAnim flags)
 {
-	auto *animC = static_cast<pragma::BaseAnimatedComponent*>(AddNetworkedComponent("animated").get());
+	auto *animC = static_cast<pragma::BaseSkAnimatedComponent*>(AddNetworkedComponent("animated").get());
 	if(animC == nullptr)
 		return false;
 	return animC->PlayLayeredAnimation(slot,animation,flags);
 }
 void BaseEntity::StopLayeredAnimation(int slot)
 {
-	auto animC = GetAnimatedComponent();
+	auto animC = GetSkAnimatedComponent();
 	if(animC.expired())
 		return;
 	animC->StopLayeredAnimation(slot);
 }
 bool BaseEntity::PlayAnimation(const std::string &animation,pragma::FPlayAnim flags)
 {
-	auto *animC = static_cast<pragma::BaseAnimatedComponent*>(AddNetworkedComponent("animated").get());
+	auto *animC = static_cast<pragma::BaseSkAnimatedComponent*>(AddNetworkedComponent("animated").get());
 	if(animC == nullptr)
 		return false;
 	return animC->PlayAnimation(animation,flags);
 }
 int32_t BaseEntity::GetAnimation() const
 {
-	auto animC = GetAnimatedComponent();
+	auto animC = GetSkAnimatedComponent();
 	return animC.valid() ? animC->GetAnimation() : -1;
 }
 Activity BaseEntity::GetActivity() const
 {
-	auto animC = GetAnimatedComponent();
+	auto animC = GetSkAnimatedComponent();
 	return animC.valid() ? animC->GetActivity() : Activity::Invalid;
 }
 

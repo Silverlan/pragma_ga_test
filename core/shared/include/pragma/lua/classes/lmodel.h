@@ -10,8 +10,10 @@
 #include "pragma/networkdefinitions.h"
 #include <pragma/lua/luaapi.h>
 #include "pragma/lua/classes/ldef_model.h"
+#include "pragma/types.hpp"
 
 class Model;
+namespace pragma::animation {class Animation;};
 namespace Lua
 {
 	namespace ModelMeshGroup
@@ -161,7 +163,7 @@ namespace Lua
 		DLLNETWORK void Scale(lua_State *l,::Model &mdl,const Vector3 &scale);
 		DLLNETWORK void GetEyeOffset(lua_State *l,::Model &mdl);
 		DLLNETWORK void SetEyeOffset(lua_State *l,::Model &mdl,const Vector3 &offset);
-		DLLNETWORK void AddAnimation(lua_State *l,::Model &mdl,const std::string &name,::Animation &anim);
+		DLLNETWORK void AddAnimation(lua_State *l,::Model &mdl,const std::string &name,pragma::animation::Animation &anim);
 		DLLNETWORK void RemoveAnimation(lua_State *l,::Model &mdl,uint32_t idx);
 		DLLNETWORK void ClearAnimations(lua_State *l,::Model &mdl);
 		DLLNETWORK void ClipAgainstPlane(lua_State *l,::Model &mdl,const Vector3 &n,double d,::Model &clippedMdlA,::Model &clippedMdlB);

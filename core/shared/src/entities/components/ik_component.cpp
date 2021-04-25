@@ -15,12 +15,15 @@
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/lua/l_entity_handles.hpp"
 #include "pragma/model/model.h"
+#include "pragma/model/animation/skeleton.h"
+#include "pragma/model/animation/animated_pose.hpp"
 #include "pragma/physics/raytraces.h"
 #include "pragma/physics/jointinfo.h"
 #include "pragma/entities/baseentity_trace.hpp"
+#include "pragma/util/orientedpoint.h"
 #include <pragma/physics/environment.hpp>
 
 using namespace pragma;
@@ -37,7 +40,7 @@ void IKComponent::Initialize()
 {
 	BaseEntityComponent::Initialize();
 	GetEntity().AddComponent("animated");
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_ON_ANIMATIONS_UPDATED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+	BindEventUnhandled(AnimatedComponent::EVENT_ON_ANIMATIONS_UPDATED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		UpdateInverseKinematics(GetEntity().GetNetworkState()->GetGameState()->DeltaTime());
 	});
 	BindEventUnhandled(BaseModelComponent::EVENT_ON_MODEL_CHANGED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
@@ -111,11 +114,11 @@ bool IKComponent::InitializeIKController(uint32_t ikControllerId)
 	
 	for(auto &ikJoint : ikJoints)
 	{
-		auto *ppos = reference.GetBonePosition(ikJoint.boneId);
-		auto *prot = reference.GetBoneOrientation(ikJoint.boneId);
-		auto pos = ppos ? *ppos : Vector3{};
-		auto rot = prot ? *prot : uquat::identity();
-		ikJoint.referenceTransform = {pos,rot};
+		auto *refPose = reference.GetTransform(ikJoint.boneId);
+		if(refPose)
+			ikJoint.referenceTransform = {refPose->GetOrigin(),refPose->GetRotation()};
+		else
+			ikJoint.referenceTransform = {Vector3{},uquat::identity()};
 	}
 
 	// Find joints associated with ik chain bones
@@ -266,14 +269,13 @@ bool IKComponent::InitializeIKController(uint32_t ikControllerId)
 		nodeInfo->ikNodes = ikJoint.nodes;
 		nodeInfo->boneId = ikJoint.boneId;
 
-		auto *pos = reference.GetBonePosition(ikJoint.boneId);
-		auto *rot = reference.GetBoneOrientation(ikJoint.boneId);
-		if(pos != nullptr && rot != nullptr)
+		auto *refPose = reference.GetTransform(ikJoint.boneId);
+		if(refPose)
 		{
 			auto &node = ikJoint.nodes.at(0);
 			auto rotNode = util::ik::get_rotation(*node);
 			uquat::inverse(rotNode);
-			nodeInfo->deltaRotation = *rot *rotNode;
+			nodeInfo->deltaRotation = refPose->GetRotation() *rotNode;
 		}
 		if(nodeInfo->IsEffector())
 		{
@@ -352,7 +354,7 @@ void IKComponent::UpdateInverseKinematics(double tDelta)
 		return;
 	auto &ent = GetEntity();
 	auto mdlComponent = ent.GetModelComponent();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	auto &hMdl = ent.GetModel();
 	if(hMdl == nullptr || animComponent.expired())
 		return;
@@ -390,10 +392,10 @@ void IKComponent::UpdateInverseKinematics(double tDelta)
 			pTrComponent->WorldToLocal(&pos,&rot);
 
 		auto &footData = feetData.insert(std::make_pair(pair.first,FootData{})).first->second;
-		auto *refPos = reference.GetBonePosition(boneId);
-		if(refPos != nullptr)
+		auto *refPose = reference.GetTransform(boneId);
+		if(refPose != nullptr)
 		{
-			auto footHeight = pos.y -refPos->y; // Foot is raised (above foot pose in reference)
+			auto footHeight = pos.y -refPose->GetOrigin().y; // Foot is raised (above foot pose in reference)
 			if(footHeight >= footInfo.yIkTreshold) // Disable IK if foot is raised above threshold
 			{
 				footData.enabled = false;
@@ -450,13 +452,12 @@ void IKComponent::UpdateInverseKinematics(double tDelta)
 			auto rot = uquat::identity();
 			if(animComponent->GetLocalBonePosition(rootNodeInfo->boneId,pos,rot) == true)
 			{
-				auto *posRef = reference.GetBonePosition(rootNodeInfo->boneId);
-				auto *rotRef = reference.GetBoneOrientation(rootNodeInfo->boneId);
-				if(posRef != nullptr && rotRef != nullptr)
+				auto *poseRef = reference.GetTransform(rootNodeInfo->boneId);
+				if(poseRef)
 				{
 					auto posDelta = Vector3{};
 					auto rotDelta = uquat::identity();
-					uvec::world_to_local(*posRef,*rotRef,posDelta,rotDelta);
+					uvec::world_to_local(poseRef->GetOrigin(),poseRef->GetRotation(),posDelta,rotDelta);
 					uvec::local_to_world(pos,rot,posDelta,rotDelta);
 					t.SetOrigin(posDelta);
 					t.SetRotation(rotDelta);

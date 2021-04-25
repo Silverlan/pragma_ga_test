@@ -363,9 +363,11 @@ DLLCLIENT void NET_cl_ent_anim_play(NetPacket packet)
 	if(ent == NULL)
 		return;
 	int anim = packet->Read<int>();
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto pAnimComponent = ent->GetAnimatedComponent();
 	if(pAnimComponent.valid())
 		pAnimComponent->PlayAnimation(anim);
+#endif
 }
 
 DLLCLIENT void NET_cl_ent_anim_gesture_play(NetPacket packet)
@@ -377,7 +379,7 @@ DLLCLIENT void NET_cl_ent_anim_gesture_play(NetPacket packet)
 		return;
 	int slot = packet->Read<int>();
 	int animation = packet->Read<int>();
-	auto pAnimComponent = ent->GetAnimatedComponent();
+	auto pAnimComponent = ent->GetSkAnimatedComponent();
 	if(pAnimComponent.valid())
 		pAnimComponent->PlayLayeredAnimation(slot,animation);
 }
@@ -390,7 +392,7 @@ DLLCLIENT void NET_cl_ent_anim_gesture_stop(NetPacket packet)
 	if(ent == NULL)
 		return;
 	int slot = packet->Read<int>();
-	auto pAnimComponent = ent->GetAnimatedComponent();
+	auto pAnimComponent = ent->GetSkAnimatedComponent();
 	if(pAnimComponent.valid())
 		pAnimComponent->StopLayeredAnimation(slot);
 }

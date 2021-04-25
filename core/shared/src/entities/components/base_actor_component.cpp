@@ -13,7 +13,7 @@
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_render_component.hpp"
 #include "pragma/entities/components/base_observable_component.hpp"
 #include "pragma/entities/components/velocity_component.hpp"
@@ -157,7 +157,7 @@ void BaseActorComponent::UpdateMoveController()
 	if(m_moveController == -1)
 		return;
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	if(animComponent.expired())
 		return;
 	auto pTrComponent = ent.GetTransformComponent();

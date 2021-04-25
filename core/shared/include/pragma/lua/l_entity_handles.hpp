@@ -19,7 +19,7 @@
 #include "pragma/entities/components/base_weapon_component.hpp"
 #include "pragma/entities/components/base_wheel_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_attachable_component.hpp"
 #include "pragma/entities/components/base_parent_component.hpp"
 #include "pragma/entities/components/base_io_component.hpp"
@@ -33,6 +33,7 @@
 #include "pragma/entities/components/submergible_component.hpp"
 #include "pragma/entities/components/usable_component.hpp"
 #include "pragma/entities/components/global_component.hpp"
+#include "pragma/entities/components/animated_component.hpp"
 #include "pragma/entities/components/base_flammable_component.hpp"
 #include "pragma/entities/components/base_flex_component.hpp"
 #include "pragma/entities/components/base_health_component.hpp"
@@ -160,7 +161,7 @@ DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseVehicle);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseWheel);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseWeapon);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseModel);
-DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseAnimated);
+DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseSkAnimated);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseIO);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseAttachable);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseParent);
@@ -173,7 +174,8 @@ DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,Map);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,Usable);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,Submergible);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,Damageable);
-DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,GlobalName);
+DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,GlobalName)
+DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,Animated);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseFlammable);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseFlex);
 DEFINE_LUA_COMPONENT_HANDLE(DLLNETWORK,BaseHealth);

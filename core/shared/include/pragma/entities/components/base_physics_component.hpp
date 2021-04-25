@@ -18,6 +18,7 @@ enum class MOVETYPE : int;
 enum class COLLISIONTYPE : int;
 namespace pragma
 {
+	namespace animation {class AnimatedPose;};
 	namespace physics
 	{
 		class IConvexShape; class IRigidBody; class IConstraint; class IShape; class PhysObjCreateInfo;
@@ -254,8 +255,8 @@ namespace pragma
 		bool m_bColCallbacksEnabled = false;
 		bool m_bColContactReportEnabled = false;
 		virtual void InitializePhysObj();
-		void UpdatePhysicsBone(Frame &reference,const std::shared_ptr<Bone> &bone,Quat &invRot,const Vector3 *mvOffset=nullptr);
-		void PostPhysicsSimulate(Frame &reference,std::unordered_map<uint32_t,std::shared_ptr<Bone>> &bones,Vector3 &moveOffset,Quat &invRot,UInt32 physRootBoneId);
+		void UpdatePhysicsBone(animation::AnimatedPose &reference,const std::shared_ptr<Bone> &bone,Quat &invRot,const Vector3 *mvOffset=nullptr);
+		void PostPhysicsSimulate(animation::AnimatedPose &reference,std::unordered_map<uint32_t,std::shared_ptr<Bone>> &bones,Vector3 &moveOffset,Quat &invRot,UInt32 physRootBoneId);
 		// Updates the entity's bones to match the transforms of the collision objects
 		void UpdateRagdollPose();
 		

@@ -8,6 +8,7 @@
 #include "stdafx_shared.h"
 #include "pragma/file_formats/wmd.h"
 #include "pragma/model/modelmesh.h"
+#include "pragma/model/animation/animation.hpp"
 #include "pragma/physics/collisionmesh.h"
 #include "pragma/model/animation/vertex_animation.hpp"
 #include "pragma/model/animation/flex_animation.hpp"
@@ -15,8 +16,9 @@
 
 void FWMD::LoadBones(unsigned short version,unsigned int numBones,Model &mdl)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto &skeleton = mdl.GetSkeleton();
-	auto reference = Animation::Create();
+	auto reference = pragma::animation::Animation::Create();
 	if(!m_bStatic)
 	{
 		reference->ReserveBoneIds(reference->GetBoneCount() +numBones);
@@ -92,6 +94,7 @@ void FWMD::LoadBones(unsigned short version,unsigned int numBones,Model &mdl)
 	mdl.AddAnimation("reference",reference);
 	mdl.SetReference(refFrame);
 	mdl.GenerateBindPoseMatrices();
+#endif
 }
 
 void FWMD::LoadHitboxes(uint16_t version,Model &mdl)
@@ -582,12 +585,13 @@ void FWMD::LoadIKControllers(uint16_t version,Model &mdl)
 
 void FWMD::LoadAnimations(unsigned short version,Model &mdl)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	unsigned int numAnimations = Read<unsigned int>();
 	for(unsigned int i=0;i<numAnimations;i++)
 	{
 		std::string name = ReadString();
 		FWAD wad;
-		auto anim = std::shared_ptr<Animation>(wad.ReadData(version,m_file));
+		auto anim = std::shared_ptr<pragma::Animation>(wad.ReadData(version,m_file));
 		if(anim)
 		{
 			if(version < 0x0007)
@@ -807,6 +811,7 @@ void FWMD::LoadAnimations(unsigned short version,Model &mdl)
 			}
 		}
 	}
+#endif
 }
 
 void FWMD::LoadLODData(unsigned short version,Model &mdl)

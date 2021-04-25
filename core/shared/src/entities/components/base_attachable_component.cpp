@@ -10,11 +10,12 @@
 #include "pragma/entities/components/base_model_component.hpp"
 #include "pragma/entities/components/base_character_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_parent_component.hpp"
 #include "pragma/entities/baseentity_events.hpp"
 #include "pragma/entities/parentinfo.h"
 #include "pragma/entities/entity_iterator.hpp"
+#include "pragma/model/animation/animation.hpp"
 #include "pragma/model/model.h"
 
 using namespace pragma;
@@ -41,7 +42,7 @@ void BaseAttachableComponent::Initialize()
 			return util::EventReply::Unhandled;
 		return util::EventReply::Handled;
 	});
-	BindEvent(BaseAnimatedComponent::EVENT_SHOULD_UPDATE_BONES,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	BindEvent(BaseSkAnimatedComponent::EVENT_SHOULD_UPDATE_BONES,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		if(m_attachment != nullptr && (m_attachment->flags &FAttachmentMode::BoneMerge) != FAttachmentMode::None)
 		{
 			static_cast<CEShouldUpdateBones&>(evData.get()).shouldUpdate = true;
@@ -272,7 +273,7 @@ AttachmentData *BaseAttachableComponent::AttachToBone(BaseEntity *ent,uint32_t b
 	{
 		auto *parent = m_attachment->parent.get();
 		auto &entParent = parent->GetEntity();
-		auto animComponentParent = entParent.GetAnimatedComponent();
+		auto animComponentParent = entParent.GetSkAnimatedComponent();
 		if(animComponentParent.expired())
 			return nullptr;
 		Vector3 pos;
@@ -479,7 +480,7 @@ std::optional<umath::Transform> BaseAttachableComponent::GetParentPose() const
 		auto rot = uquat::identity();
 		if(m_attachment->bone != -1)
 		{
-			auto animComponentParent = entParent.GetAnimatedComponent();
+			auto animComponentParent = entParent.GetSkAnimatedComponent();
 			if(animComponentParent.valid())
 				animComponentParent->GetBonePosition(m_attachment->bone,pos,rot);
 		}
@@ -535,7 +536,7 @@ void BaseAttachableComponent::UpdateAttachmentOffset(bool invokeUpdateEvents)
 			if((m_attachment->flags &FAttachmentMode::BoneMerge) != FAttachmentMode::None && !m_attachment->boneMapping.empty())
 			{
 				auto mdlComponent = entThis.GetModelComponent();
-				auto animComponent = entThis.GetAnimatedComponent();
+				auto animComponent = entThis.GetSkAnimatedComponent();
 				auto hMdl = mdlComponent ? mdlComponent->GetModel() : nullptr;
 				if(hMdl != nullptr && animComponent.valid())
 				{
@@ -544,7 +545,7 @@ void BaseAttachableComponent::UpdateAttachmentOffset(bool invokeUpdateEvents)
 
 					Skeleton &skel = hMdl->GetSkeleton();
 					auto mdlComponentParent = entParent.GetModelComponent();
-					auto animComponentParent = entParent.GetAnimatedComponent();
+					auto animComponentParent = entParent.GetSkAnimatedComponent();
 					auto hMdlParent = mdlComponentParent ? mdlComponentParent->GetModel() : nullptr;
 					if(hMdlParent != nullptr && animComponentParent.valid())
 					{

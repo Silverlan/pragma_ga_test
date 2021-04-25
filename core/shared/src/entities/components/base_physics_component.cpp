@@ -16,9 +16,12 @@
 #include "pragma/entities/components/velocity_component.hpp"
 #include "pragma/entities/components/base_player_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
+#include "pragma/entities/components/animated_component.hpp"
 #include "pragma/entities/entity_component_system_t.hpp"
 #include "pragma/model/model.h"
+#include "pragma/model/animation/animation.hpp"
+#include "pragma/model/animation/animated_pose.hpp"
 #include "pragma/physics/raytraces.h"
 #include <sharedutils/netpacket.hpp>
 #include <pragma/physics/movetypes.h>
@@ -71,7 +74,7 @@ void BasePhysicsComponent::Initialize()
 	m_netEvSetCollisionsEnabled = SetupNetEvent("set_collisions_enabled");
 	m_netEvSetSimEnabled = SetupNetEvent("set_simulation_enabled");
 
-	BindEvent(BaseAnimatedComponent::EVENT_SHOULD_UPDATE_BONES,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	BindEvent(BaseSkAnimatedComponent::EVENT_SHOULD_UPDATE_BONES,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		if(IsRagdoll())
 		{
 			static_cast<CEShouldUpdateBones&>(evData.get()).shouldUpdate = true;
@@ -79,11 +82,11 @@ void BasePhysicsComponent::Initialize()
 		}
 		return util::EventReply::Unhandled;
 	});
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_ON_BONE_TRANSFORM_CHANGED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+	BindEventUnhandled(BaseSkAnimatedComponent::EVENT_ON_BONE_TRANSFORM_CHANGED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		auto &evDataTransform = static_cast<CEOnBoneTransformChanged&>(evData.get());
 		UpdateBoneCollisionObject(evDataTransform.boneId,evDataTransform.pos != nullptr,evDataTransform.rot != nullptr);
 	});
-	BindEvent(BaseAnimatedComponent::EVENT_MAINTAIN_ANIMATIONS,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	BindEvent(AnimatedComponent::EVENT_MAINTAIN_ANIMATIONS,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		return IsRagdoll() ? util::EventReply::Handled : util::EventReply::Unhandled; // Don't process animations if we're in ragdoll mode
 	});
 	BindEventUnhandled(BaseModelComponent::EVENT_ON_MODEL_CHANGED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
@@ -547,20 +550,23 @@ void BasePhysicsComponent::PrePhysicsSimulate()
 	dynamic_cast<PhysObjDynamic*>(phys)->PreSimulate();
 }
 
-static void entity_space_to_bone_space(std::vector<umath::ScaledTransform> &transforms,Bone &bone,Vector3 &pos,Quat &rot,Bool bSkip=true)
+static void entity_space_to_bone_space(pragma::animation::AnimatedPose &transforms,Bone &bone,Vector3 &pos,Quat &rot,Bool bSkip=true)
 {
 	auto parent = bone.parent.lock();
 	if(parent != nullptr)
 		entity_space_to_bone_space(transforms,*parent,pos,rot,false);
 	if(bSkip == false)
 	{
-		auto &t = transforms[bone.ID];
-		auto &posBone = t.GetOrigin();
-		auto &rotBone = t.GetRotation();
-		pos -= posBone;
-		auto inv = uquat::get_inverse(rotBone);
-		uvec::rotate(&pos,inv);
-		rot = inv *rot;
+		auto *t = transforms.GetTransform(bone.ID);
+		if(t)
+		{
+			auto &posBone = t->GetOrigin();
+			auto &rotBone = t->GetRotation();
+			pos -= posBone;
+			auto inv = uquat::get_inverse(rotBone);
+			uvec::rotate(&pos,inv);
+			rot = inv *rot;
+		}
 	}
 }
 pragma::physics::ICollisionObject *BasePhysicsComponent::GetCollisionObject(UInt32 boneId) const
@@ -582,19 +588,18 @@ pragma::physics::ICollisionObject *BasePhysicsComponent::GetCollisionObject(UInt
 
 std::vector<BasePhysicsComponent::PhysJoint> &BasePhysicsComponent::GetPhysConstraints() {return m_joints;}
 
-void BasePhysicsComponent::UpdatePhysicsBone(Frame &reference,const std::shared_ptr<Bone> &bone,Quat &invRot,const Vector3*)
+void BasePhysicsComponent::UpdatePhysicsBone(pragma::animation::AnimatedPose &reference,const std::shared_ptr<Bone> &bone,Quat &invRot,const Vector3*)
 {
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	if(animComponent.expired())
 		return;
 	auto boneId = bone->ID;
 	auto *o = GetCollisionObject(boneId);
 	if(o == nullptr)
 		return;
-	auto *posRef = reference.GetBonePosition(boneId);
-	auto *rotRef = reference.GetBoneOrientation(boneId);
-	if(posRef == nullptr || rotRef == nullptr)
+	auto *poseRef = reference.GetTransform(boneId);
+	if(poseRef == nullptr)
 		return;
 	/*auto &origin = o->GetOrigin();
 	auto rotConstraint = invRot *o->GetRotation() *(*rotRef);
@@ -609,7 +614,7 @@ void BasePhysicsComponent::UpdatePhysicsBone(Frame &reference,const std::shared_
 	uvec::rotate(&localOffset,invRot);
 	if(mvOffset != nullptr)
 		localOffset -= *mvOffset;*/ // Deprecated?
-	auto boneOffset = o->GetOrigin() +(*posRef);
+	auto boneOffset = o->GetOrigin() +poseRef->GetOrigin();
 	uvec::rotate(&boneOffset,o->GetRotation());
 	auto boneWorldPos = o->GetPos() +boneOffset;
 	auto pTrComponent = ent.GetTransformComponent();
@@ -617,13 +622,13 @@ void BasePhysicsComponent::UpdatePhysicsBone(Frame &reference,const std::shared_
 		uvec::world_to_local(GetOrigin(),pTrComponent->GetRotation(),boneWorldPos);
 	auto localOffset = boneWorldPos;
 
-	auto rotConstraint = invRot *o->GetRotation() *(*rotRef);
+	auto rotConstraint = invRot *o->GetRotation() *poseRef->GetRotation();
 	auto localRot = rotConstraint;
 	entity_space_to_bone_space(animComponent->GetBoneTransforms(),*bone,localOffset,localRot);
 	animComponent->SetBonePosition(boneId,localOffset,localRot,nullptr,false);
 }
 
-void BasePhysicsComponent::PostPhysicsSimulate(Frame &reference,std::unordered_map<uint32_t,std::shared_ptr<Bone>> &bones,Vector3 &moveOffset,Quat &invRot,UInt32 physRootBoneId)
+void BasePhysicsComponent::PostPhysicsSimulate(pragma::animation::AnimatedPose &reference,std::unordered_map<uint32_t,std::shared_ptr<Bone>> &bones,Vector3 &moveOffset,Quat &invRot,UInt32 physRootBoneId)
 {
 	// Linear iteration; Causes jittering, depending on how far the physics object's bone is down the skeleton hierarchy
 	/*auto *phys = GetPhysicsObject();
@@ -745,7 +750,7 @@ bool BasePhysicsComponent::AreForcePhysicsAwakeCallbacksEnabled() const
 void BasePhysicsComponent::UpdateRagdollPose()
 {
 	auto &ent = GetEntity();
-	auto animatedComponent = ent.GetAnimatedComponent();
+	auto animatedComponent = ent.GetSkAnimatedComponent();
 	auto mdlComponent = ent.GetModelComponent();
 	if(!mdlComponent || animatedComponent.expired() || IsRagdoll() == false)
 		return;
@@ -897,7 +902,7 @@ void BasePhysicsComponent::UpdateBoneCollisionObject(UInt32 boneId,Bool updatePo
 	if(phys == nullptr)
 		return;
 	auto &ent = GetEntity();
-	auto animatedComponent = ent.GetAnimatedComponent();
+	auto animatedComponent = ent.GetSkAnimatedComponent();
 	auto &hMdl = GetEntity().GetModel();
 	if(animatedComponent.expired() || hMdl == nullptr)
 		return;
@@ -909,14 +914,13 @@ void BasePhysicsComponent::UpdateBoneCollisionObject(UInt32 boneId,Bool updatePo
 	auto physRootBoneId = physRoot->GetBoneID();
 	if(physRootBoneId == boneId)
 		return;
-	auto posRef = reference.GetBonePosition(boneId);
-	auto rotRef = reference.GetBoneOrientation(boneId);
-	if(posRef == nullptr || rotRef == nullptr)
+	auto *poseRef = reference.GetTransform(boneId);
+	if(poseRef == nullptr)
 		return;
 	Vector3 pos;
 	Quat rot;
 	animatedComponent->GetLocalBonePosition(boneId,pos,rot);
-	rot *= uquat::get_inverse(*rotRef);
+	rot *= uquat::get_inverse(poseRef->GetRotation());
 	Vector3 posRoot;
 	animatedComponent->GetLocalBonePosition(physRootBoneId,posRoot);
 	auto offsetRoot = -(physRoot->GetOrigin() *physRoot->GetRotation()) -posRoot;
@@ -931,7 +935,7 @@ void BasePhysicsComponent::UpdateBoneCollisionObject(UInt32 boneId,Bool updatePo
 
 			if(updatePos == true)
 			{
-				auto offset = *posRef +o->GetOrigin();
+				auto offset = poseRef->GetOrigin() +o->GetOrigin();
 				uvec::rotate(&offset,oRot);
 				oPos += -offset +offsetRoot;
 				if(updateRot == true)

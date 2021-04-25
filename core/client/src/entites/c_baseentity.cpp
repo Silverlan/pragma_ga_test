@@ -317,10 +317,10 @@ void CBaseEntity::SendNetEventUDP(UInt32 eventId,NetPacket &data) const
 	data->Write<UInt32>(eventId);
 	client->SendPacket("ent_event",data,pragma::networking::Protocol::FastUnreliable);
 }
-util::WeakHandle<pragma::BaseAnimatedComponent> CBaseEntity::GetAnimatedComponent() const
+util::WeakHandle<pragma::BaseSkAnimatedComponent> CBaseEntity::GetSkAnimatedComponent() const
 {
-	auto pComponent = GetComponent<pragma::CAnimatedComponent>();
-	return pComponent.valid() ? std::static_pointer_cast<pragma::BaseAnimatedComponent>(pComponent->shared_from_this()) : util::WeakHandle<pragma::BaseAnimatedComponent>{};
+	auto pComponent = GetComponent<pragma::CSkAnimatedComponent>();
+	return pComponent.valid() ? std::static_pointer_cast<pragma::BaseSkAnimatedComponent>(pComponent->shared_from_this()) : util::WeakHandle<pragma::BaseSkAnimatedComponent>{};
 }
 util::WeakHandle<pragma::BaseWeaponComponent> CBaseEntity::GetWeaponComponent() const
 {

@@ -86,7 +86,7 @@ void CGame::InitializeEntityComponents(pragma::EntityComponentManager &component
 	componentManager.RegisterComponentType<pragma::CWorldComponent>("world");
 	componentManager.RegisterComponentType<pragma::CShooterComponent>("shooter");
 	componentManager.RegisterComponentType<pragma::CModelComponent>("model");
-	componentManager.RegisterComponentType<pragma::CAnimatedComponent>("animated");
+	componentManager.RegisterComponentType<pragma::CSkAnimatedComponent>("sk_animated");
 	componentManager.RegisterComponentType<pragma::CGenericComponent>("entity");
 	componentManager.RegisterComponentType<pragma::CIOComponent>("io");
 	componentManager.RegisterComponentType<pragma::CTimeScaleComponent>("time_scale");

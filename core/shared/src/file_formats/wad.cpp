@@ -10,8 +10,9 @@
 #include <pragma/console/conout.h>
 #include <mathutil/uquat.h>
 #include "pragma/model/animation/fanim.h"
+#include "pragma/model/animation/animation.hpp"
 
-std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
+std::shared_ptr<pragma::Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 {
 	m_file = f;
 	uint32_t animVersion = 0;
@@ -26,15 +27,16 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 			return nullptr;
 		}
 	}
-	auto anim = Animation::Create();
+	auto anim = pragma::animation::Animation::Create();
 	//unsigned short ver = Read<unsigned short>();
 	//Con::cout<<"Animation Version: "<<ver<<Con::endl;
 
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto activity = Activity::Invalid;
 	if(mdlVersion >= 0x0013)
 	{
 		auto activityName = ReadString();
-		auto id = Animation::GetActivityEnumRegister().RegisterEnum(activityName);
+		auto id = pragma::animation::Animation::GetActivityEnumRegister().RegisterEnum(activityName);
 		activity = (id != util::EnumRegister::InvalidEnum) ? static_cast<Activity>(id) : Activity::Invalid;
 	}
 	else
@@ -42,6 +44,7 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 	anim->SetActivity(activity);
 	unsigned char activityWeight = Read<unsigned char>();
 	anim->SetActivityWeight(activityWeight);
+#endif
 
 	auto flags = static_cast<FAnim>(Read<unsigned int>());
 	anim->SetFlags(flags);
@@ -50,6 +53,7 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 	bool bMoveZ = ((flags &FAnim::MoveZ) == FAnim::MoveZ) ? true : false;
 	bool bHasMovement = bMoveX || bMoveZ;
 
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	unsigned int fps = Read<unsigned int>();
 	anim->SetFPS(static_cast<unsigned char>(fps));
 
@@ -59,6 +63,7 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 		auto max = Read<Vector3>();
 		anim->SetRenderBounds(min,max);
 	}
+#endif
 
 	bool bHasFadeIn = Read<bool>();
 	if(bHasFadeIn == true)
@@ -74,6 +79,7 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 		anim->SetFadeOutTime(fadeOut);
 	}
 
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	unsigned int numBones = Read<unsigned int>();
 	anim->ReserveBoneIds(anim->GetBoneCount() +numBones);
 	for(unsigned int i=0;i<numBones;i++)
@@ -115,7 +121,9 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 			blend.animationPostBlendTarget = Read<int32_t>();
 		}
 	}
+#endif
 	
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	unsigned int numFrames = Read<unsigned int>();
 	for(unsigned int i=0;i<numFrames;i++)
 	{
@@ -156,7 +164,7 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 			if(mdlVersion >= 0x0013)
 			{
 				auto name = ReadString();
-				auto id = Animation::GetEventEnumRegister().RegisterEnum(name);
+				auto id = pragma::animation::Animation::GetEventEnumRegister().RegisterEnum(name);
 				ev->eventID = (id != util::EnumRegister::InvalidEnum) ? static_cast<AnimationEvent::Type>(id) : AnimationEvent::Type::Invalid;
 			}
 			else
@@ -184,9 +192,10 @@ std::shared_ptr<Animation> FWAD::ReadData(unsigned short mdlVersion,VFilePtr f)
 	}
 	//fclose(m_file);
 	return anim;
+#endif
 }
 
-std::shared_ptr<Animation> FWAD::Load(unsigned short version,const char *animation)
+std::shared_ptr<pragma::Animation> FWAD::Load(unsigned short version,const char *animation)
 {
 	std::string pathCache(animation);
 	std::transform(pathCache.begin(),pathCache.end(),pathCache.begin(),::tolower);

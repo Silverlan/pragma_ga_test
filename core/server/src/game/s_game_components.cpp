@@ -98,7 +98,7 @@ void SGame::InitializeEntityComponents(pragma::EntityComponentManager &component
 	componentManager.RegisterComponentType<pragma::SFlashlightComponent>("flashlight");
 	componentManager.RegisterComponentType<pragma::SShooterComponent>("shooter");
 	componentManager.RegisterComponentType<pragma::SModelComponent>("model");
-	componentManager.RegisterComponentType<pragma::SAnimatedComponent>("animated");
+	componentManager.RegisterComponentType<pragma::SSkAnimatedComponent>("sk_animated");
 	componentManager.RegisterComponentType<pragma::SGenericComponent>("entity");
 	componentManager.RegisterComponentType<pragma::SIOComponent>("io");
 	componentManager.RegisterComponentType<pragma::STimeScaleComponent>("time_scale");

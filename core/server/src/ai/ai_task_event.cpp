@@ -8,7 +8,7 @@
 #include "pragma/ai/ai_task_event.hpp"
 #include "pragma/ai/ai_schedule.h"
 #include "pragma/entities/components/s_ai_component.hpp"
-#include <pragma/entities/components/base_animated_component.hpp>
+#include <pragma/entities/components/base_sk_animated_component.hpp>
 #include <pragma/model/animation/activities.h>
 
 using namespace pragma;
@@ -44,7 +44,7 @@ ai::BehaviorNode::Result ai::TaskEvent::Start(const Schedule *sched,pragma::SAIC
 				ev.arguments.push_back(*str);
 			paramArg = GetParameter(sched,++argIdx);
 		}
-		auto pAnimComponent = aiComponent.GetEntity().GetAnimatedComponent();
+		auto pAnimComponent = aiComponent.GetEntity().GetSkAnimatedComponent();
 		if(pAnimComponent.valid())
 			pAnimComponent->InjectAnimationEvent(ev);
 	}

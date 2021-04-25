@@ -17,12 +17,14 @@
 #include "pragma/lua/classes/lcollisionmesh.h"
 #include "luasystem.h"
 #include "pragma/model/model.h"
+#include "pragma/model/animation/animation.hpp"
 #include "pragma/asset/util_asset.hpp"
 #include "pragma/physics/collisionmesh.h"
 #include "pragma/model/vertex.h"
 #include "pragma/physics/physsoftbodyinfo.hpp"
 #include "pragma/model/animation/vertex_animation.hpp"
 #include "pragma/model/animation/flex_animation.hpp"
+#include "pragma/model/animation/skeletal_animation.hpp"
 #include "pragma/model/modelmesh.h"
 #include <luabind/iterator_policy.hpp>
 #include <pragma/lua/lua_call.hpp>
@@ -689,9 +691,9 @@ void Lua::Model::register_class(
 		.def("GetBoneRotation",&Lua::Frame::GetBoneOrientation)
 		.def("SetBonePosition",&Lua::Frame::SetBonePosition)
 		.def("SetBoneRotation",&Lua::Frame::SetBoneOrientation)
-		.def("Localize",static_cast<void(*)(lua_State*,::Frame&,::Animation&,::Skeleton*)>(&Lua::Frame::Localize))
+		.def("Localize",static_cast<void(*)(lua_State*,::Frame&,pragma::animation::Animation&,::Skeleton*)>(&Lua::Frame::Localize))
 		.def("Localize",static_cast<void(*)(lua_State*,::Frame&,::Skeleton*)>(&Lua::Frame::Localize))
-		.def("Globalize",static_cast<void(*)(lua_State*,::Frame&,::Animation&,::Skeleton*)>(&Lua::Frame::Globalize))
+		.def("Globalize",static_cast<void(*)(lua_State*,::Frame&,pragma::animation::Animation&,::Skeleton*)>(&Lua::Frame::Globalize))
 		.def("Globalize",static_cast<void(*)(lua_State*,::Frame&,::Skeleton*)>(&Lua::Frame::Globalize))
 		.def("CalcRenderBounds",&Lua::Frame::CalcRenderBounds)
 		.def("Rotate",&Lua::Frame::Rotate)
@@ -762,13 +764,12 @@ void Lua::Model::register_class(
 	classDefFrame.scope[luabind::def("Create",&Lua::Frame::Create)];
 
 	// Animation
-	auto classDefAnimation = luabind::class_<::Animation>("Animation")
+	auto classDefAnimation = luabind::class_<pragma::animation::Animation>("Animation")
 		.def("GetFrame",&Lua::Animation::GetFrame)
-		.def("GetBoneList",&Lua::Animation::GetBoneList)
 		.def("GetActivity",&Lua::Animation::GetActivity)
-		.def("GetActivityName",static_cast<luabind::object(*)(lua_State*,::Animation&)>([](lua_State *l,::Animation &anim) -> luabind::object {
-			auto &reg = ::Animation::GetActivityEnumRegister();
-			auto *name = reg.GetEnumName(umath::to_integral(anim.GetActivity()));
+		.def("GetActivityName",static_cast<luabind::object(*)(lua_State*,pragma::animation::Animation&)>([](lua_State *l,pragma::animation::Animation &anim) -> luabind::object {
+			auto &reg = pragma::animation::skeletal::get_activity_enum_register();
+			auto *name = reg.GetEnumName(umath::to_integral(pragma::animation::skeletal::get_activity(anim)));
 			if(name == nullptr)
 				return {};
 			return luabind::object{l,*name};
@@ -776,8 +777,8 @@ void Lua::Model::register_class(
 		.def("SetActivity",&Lua::Animation::SetActivity)
 		.def("GetActivityWeight",&Lua::Animation::GetActivityWeight)
 		.def("SetActivityWeight",&Lua::Animation::SetActivityWeight)
-		.def("GetFPS",&Lua::Animation::GetFPS)
-		.def("SetFPS",&Lua::Animation::SetFPS)
+		.def("GetSpeedFactor",&Lua::Animation::GetSpeedFactor)
+		.def("SetSpeedFactor",&Lua::Animation::SetSpeedFactor)
 		.def("GetFlags",&Lua::Animation::GetFlags)
 		.def("SetFlags",&Lua::Animation::SetFlags)
 		.def("AddFlags",&Lua::Animation::AddFlags)
@@ -785,13 +786,11 @@ void Lua::Model::register_class(
 		.def("AddFrame",&Lua::Animation::AddFrame)
 		.def("GetFrames",&Lua::Animation::GetFrames)
 		.def("GetDuration",&Lua::Animation::GetDuration)
-		.def("GetBoneCount",&Lua::Animation::GetBoneCount)
-		.def("GetFrameCount",&Lua::Animation::GetFrameCount)
 		.def("AddEvent",&Lua::Animation::AddEvent)
-		.def("GetEvents",static_cast<void(*)(lua_State*,::Animation&,uint32_t)>(&Lua::Animation::GetEvents))
-		.def("GetEvents",static_cast<void(*)(lua_State*,::Animation&)>(&Lua::Animation::GetEvents))
-		.def("GetEventCount",static_cast<void(*)(lua_State*,::Animation&,uint32_t)>(&Lua::Animation::GetEventCount))
-		.def("GetEventCount",static_cast<void(*)(lua_State*,::Animation&)>(&Lua::Animation::GetEventCount))
+		.def("GetEvents",static_cast<void(*)(lua_State*,pragma::animation::Animation&,uint32_t)>(&Lua::Animation::GetEvents))
+		.def("GetEvents",static_cast<void(*)(lua_State*,pragma::animation::Animation&)>(&Lua::Animation::GetEvents))
+		.def("GetEventCount",static_cast<void(*)(lua_State*,pragma::animation::Animation&,uint32_t)>(&Lua::Animation::GetEventCount))
+		.def("GetEventCount",static_cast<void(*)(lua_State*,pragma::animation::Animation&)>(&Lua::Animation::GetEventCount))
 		.def("GetFadeInTime",&Lua::Animation::GetFadeInTime)
 		.def("GetFadeOutTime",&Lua::Animation::GetFadeOutTime)
 		.def("GetBlendController",&Lua::Animation::GetBlendController)
@@ -800,41 +799,39 @@ void Lua::Model::register_class(
 		.def("Rotate",&Lua::Animation::Rotate)
 		.def("Translate",&Lua::Animation::Translate)
 		.def("Scale",&Lua::Animation::Scale)
-		.def("Reverse",&Lua::Animation::Reverse)
 		.def("RemoveEvent",&Lua::Animation::RemoveEvent)
 		.def("SetEventData",&Lua::Animation::SetEventData)
 		.def("SetEventType",&Lua::Animation::SetEventType)
 		.def("SetEventArgs",&Lua::Animation::SetEventArgs)
 		.def("LookupBone",&Lua::Animation::LookupBone)
 		.def("SetBoneList",&Lua::Animation::SetBoneList)
-		.def("AddBoneId",&Lua::Animation::AddBoneId)
 		.def("SetFadeInTime",&Lua::Animation::SetFadeInTime)
 		.def("SetFadeOutTime",&Lua::Animation::SetFadeOutTime)
 		.def("SetBoneWeight",&Lua::Animation::SetBoneWeight)
 		.def("GetBoneWeight",&Lua::Animation::GetBoneWeight)
 		.def("GetBoneWeights",&Lua::Animation::GetBoneWeights)
-		.def("ClearFrames",static_cast<void(*)(lua_State*,::Animation&)>([](lua_State *l,::Animation &anim) {
-			anim.GetFrames().clear();
-		}))
-		.def("GetBoneId",static_cast<void(*)(lua_State*,::Animation&,uint32_t)>([](lua_State *l,::Animation &anim,uint32_t idx) {
-			auto &boneList = anim.GetBoneList();
-			if(idx >= boneList.size())
-				return;
-			Lua::PushInt(l,boneList[idx]);
-		}))
-		.def("Save",static_cast<void(*)(lua_State*,::Animation&,udm::AssetData&)>([](lua_State *l,::Animation &anim,udm::AssetData &assetData) {
+		.def("Save",static_cast<void(*)(lua_State*,pragma::animation::Animation&,udm::AssetData&)>([](lua_State *l,pragma::animation::Animation &anim,udm::AssetData &assetData) {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 			std::string err;
 			auto result = anim.Save(assetData,err);
 			if(result == false)
 				Lua::PushString(l,err);
 			else
 				Lua::PushBool(l,result);
+#endif
 		}))
-		.def("SaveLegacy",static_cast<void(*)(lua_State*,::Animation&,LFile&)>([](lua_State *l,::Animation &anim,LFile &f) {
+		.def("SaveLegacy",static_cast<void(*)(lua_State*,pragma::animation::Animation&,LFile&)>([](lua_State *l,pragma::animation::Animation &anim,LFile &f) {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 			auto fptr = std::dynamic_pointer_cast<VFilePtrInternalReal>(f.GetHandle());
 			if(fptr == nullptr)
 				return;
 			anim.SaveLegacy(fptr);
+#endif
+		}))
+		.def("SetDuration",static_cast<void(*)(lua_State*,pragma::animation::Animation&,float)>([](lua_State *l,pragma::animation::Animation &anim,float duration) {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+			anim.SetDuration(duration);
+#endif
 		}));
 	classDefAnimation.scope[
 		luabind::def("Create",&Lua::Animation::Create),
@@ -851,7 +848,7 @@ void Lua::Model::register_class(
 	];
 	classDefAnimation.scope[luabind::def("Load",static_cast<void(*)(lua_State*,udm::AssetData&)>([](lua_State *l,udm::AssetData &assetData) {
 		std::string err;
-		auto anim = ::Animation::Load(assetData,err);
+		auto anim = pragma::animation::Animation::Load(assetData,err);
 		if(anim == nullptr)
 		{
 			Lua::PushBool(l,false);
@@ -1425,7 +1422,7 @@ void Lua::Model::GetAnimations(lua_State *l,::Model &mdl)
 	for(auto &anim : anims)
 	{
 		Lua::PushInt(l,idx++);
-		Lua::Push<std::shared_ptr<::Animation>>(l,anim);
+		Lua::Push<std::shared_ptr<pragma::animation::Animation>>(l,anim);
 		Lua::SetTableValue(l,t);
 	}
 }
@@ -1445,7 +1442,7 @@ void Lua::Model::GetAnimation(lua_State *l,::Model &mdl,unsigned int animID)
 	auto anim = mdl.GetAnimation(animID);
 	if(anim == nullptr)
 		return;
-	Lua::Push<std::shared_ptr<::Animation>>(l,anim);
+	Lua::Push<std::shared_ptr<pragma::animation::Animation>>(l,anim);
 }
 
 void Lua::Model::GetAnimation(lua_State *l,::Model &mdl,const char *name)
@@ -1471,9 +1468,11 @@ void Lua::Model::PrecacheTextureGroups(lua_State*,::Model &mdl)
 
 void Lua::Model::GetReference(lua_State *l,::Model &mdl)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	//Lua::CheckModel(l,1);
 	auto &ref = mdl.GetReference();
 	Lua::Push<std::shared_ptr<::Frame>>(l,ref.shared_from_this());
+#endif
 }
 /*void Lua::Model::GetReferenceBoneMatrix(lua_State *l,::Model &mdl,uint32_t boneId)
 {
@@ -1941,6 +1940,7 @@ void Lua::Model::GetTextureGroup(lua_State *l,::Model &mdl,uint32_t id)
 
 void Lua::Model::Save(lua_State *l,::Model &mdl,const std::string &name)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	//Lua::CheckModel(l,1);
 	auto mdlName = name;
 	std::string rootPath;
@@ -1951,6 +1951,7 @@ void Lua::Model::Save(lua_State *l,::Model &mdl,const std::string &name)
 	}
 	auto r = mdl.SaveLegacy(engine->GetNetworkState(l)->GetGameState(),mdlName,rootPath);
 	Lua::PushBool(l,r);
+#endif
 }
 
 void Lua::Model::Copy(lua_State *l,::Model &mdl)
@@ -2072,10 +2073,12 @@ void Lua::Model::SetEyeOffset(lua_State *l,::Model &mdl,const Vector3 &offset)
 	//Lua::CheckModel(l,1);
 	mdl.SetEyeOffset(offset);
 }
-void Lua::Model::AddAnimation(lua_State *l,::Model &mdl,const std::string &name,::Animation &anim)
+void Lua::Model::AddAnimation(lua_State *l,::Model &mdl,const std::string &name,pragma::animation::Animation &anim)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	//Lua::CheckModel(l,1);
 	Lua::PushInt(l,mdl.AddAnimation(name,anim.shared_from_this()));
+#endif
 }
 void Lua::Model::RemoveAnimation(lua_State *l,::Model &mdl,uint32_t idx)
 {

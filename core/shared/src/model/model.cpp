@@ -8,6 +8,9 @@
 #include "stdafx_shared.h"
 #include <pragma/definitions.h>
 #include "pragma/model/model.h"
+#include "pragma/model/animation/animation.hpp"
+#include "pragma/model/animation/animation_channel.hpp"
+#include "pragma/model/animation/animated_pose.hpp"
 #include <pragma/engine.h>
 #include "materialmanager.h"
 #include "pragma/model/animation/activities.h"
@@ -18,6 +21,7 @@
 #include "pragma/physics/physsoftbodyinfo.hpp"
 #include "pragma/model/animation/vertex_animation.hpp"
 #include "pragma/model/animation/flex_animation.hpp"
+#include "pragma/model/animation/skeletal_animation.hpp"
 #include "pragma/file_formats/wmd.h"
 #include "pragma/asset/util_asset.hpp"
 #include <sharedutils/util_path.hpp>
@@ -98,7 +102,7 @@ Model::MetaInfo::MetaInfo()
 {}
 
 Model::Model()
-	: m_reference(Frame::Create(0))
+	: m_referencePose{std::make_shared<pragma::animation::AnimatedPose>()}
 {
 	Construct();
 }
@@ -108,18 +112,17 @@ Model::Model(NetworkState *nw,uint32_t numBones,const std::string &name)
 {
 	m_networkState = nw;
 	m_name = name;
-	for(auto i=decltype(numBones){0};i<numBones;++i)
-		m_bindPose.push_back(umat::identity());
+	m_referencePose->SetTransformCount(numBones);
 }
 
 Model::Model(const Model &other)
 	: m_networkState(other.m_networkState),m_metaInfo(other.m_metaInfo),m_bValid(other.m_bValid),m_mass(other.m_mass),
 	m_blendControllers(other.m_blendControllers),m_bodyGroups(other.m_bodyGroups),m_hitboxes(other.m_hitboxes),
-	m_name(other.m_name),m_animationIDs(other.m_animationIDs),m_bindPose(other.m_bindPose),m_collisionMin(other.m_collisionMin),
+	m_name(other.m_name),m_animationIDs(other.m_animationIDs),m_collisionMin(other.m_collisionMin),
 	m_collisionMax(other.m_collisionMax),m_renderMin(other.m_renderMin),m_renderMax(other.m_renderMax),m_joints(other.m_joints),
 	m_baseMeshes(other.m_baseMeshes),m_lods(other.m_lods),m_attachments(other.m_attachments),
 	m_materials(other.m_materials),m_textureGroups(other.m_textureGroups),m_skeleton(std::make_unique<Skeleton>(*other.m_skeleton)),
-	m_reference(Frame::Create(*other.m_reference)),m_vertexCount(other.m_vertexCount),m_triangleCount(other.m_triangleCount),
+	m_referencePose(std::make_shared<pragma::animation::AnimatedPose>(*other.m_referencePose)),m_vertexCount(other.m_vertexCount),m_triangleCount(other.m_triangleCount),
 	m_bAllMaterialsLoaded(true),m_flexControllers(other.m_flexControllers),m_flexes(other.m_flexes),m_phonemeMap(other.m_phonemeMap)
 {
 	m_meshGroups.reserve(other.m_meshGroups.size());
@@ -127,7 +130,7 @@ Model::Model(const Model &other)
 		m_meshGroups.push_back(ModelMeshGroup::Create(*meshGroup));
 	m_animations.reserve(other.m_animations.size());
 	for(auto &anim : other.m_animations)
-		m_animations.push_back(Animation::Create(*anim));
+		m_animations.push_back(pragma::animation::Animation::Create(*anim));
 
 	m_vertexAnimations.reserve(other.m_vertexAnimations.size());
 	for(auto &anim : other.m_vertexAnimations)
@@ -136,6 +139,7 @@ Model::Model(const Model &other)
 	m_collisionMeshes.reserve(other.m_collisionMeshes.size());
 	for(auto &mesh : other.m_collisionMeshes)
 		m_collisionMeshes.push_back(CollisionMesh::Create(*mesh));
+	static_assert(sizeof(Model) == 976,"Update this function when making changes to this class!");
 }
 
 Model::~Model()
@@ -174,7 +178,7 @@ bool Model::IsEqual(const Model &other) const
 		return false;
 	if(!(m_textureGroups == other.m_textureGroups && m_collisionMeshes.size() == other.m_collisionMeshes.size() && m_flexAnimations.size() == other.m_flexAnimations.size() &&
 		m_ikControllers.size() == other.m_ikControllers.size() && m_animations.size() == other.m_animations.size() &&
-		m_meshGroups.size() == other.m_meshGroups.size() && static_cast<bool>(m_reference) == static_cast<bool>(other.m_reference) && static_cast<bool>(m_skeleton) == static_cast<bool>(other.m_skeleton)))
+		m_meshGroups.size() == other.m_meshGroups.size() && static_cast<bool>(m_referencePose) == static_cast<bool>(other.m_referencePose) && static_cast<bool>(m_skeleton) == static_cast<bool>(other.m_skeleton)))
 		return false;
 	for(auto &pair : m_animationIDs)
 	{
@@ -211,11 +215,11 @@ bool Model::IsEqual(const Model &other) const
 		if(*m_collisionMeshes[i] != *other.m_collisionMeshes[i])
 			return false;
 	}
-	if(m_reference && *m_reference != *other.m_reference)
+	if(m_referencePose && *m_referencePose != *other.m_referencePose)
 		return false;
 	if(m_skeleton && *m_skeleton != *other.m_skeleton)
 		return false;
-	static_assert(sizeof(Model) == 1'000,"Update this function when making changes to this class!");
+	static_assert(sizeof(Model) == 976,"Update this function when making changes to this class!");
 	return true;
 }
 bool Model::operator==(const Model &other) const
@@ -243,7 +247,7 @@ Model &Model::operator=(const Model &other)
 	m_bodyGroups = other.m_bodyGroups;
 	m_hitboxes = other.m_hitboxes;
 	m_eyeballs = other.m_eyeballs;
-	m_reference = other.m_reference;
+	m_referencePose = other.m_referencePose;
 	m_name = other.m_name;
 	m_bAllMaterialsLoaded = other.m_bAllMaterialsLoaded;
 	m_animations = other.m_animations;
@@ -259,7 +263,6 @@ Model &Model::operator=(const Model &other)
 	m_flexAnimations = other.m_flexAnimations;
 	m_flexAnimationNames = other.m_flexAnimationNames;
 
-	m_bindPose = other.m_bindPose;
 	m_eyeOffset = other.m_eyeOffset;
 	m_collisionMin = other.m_collisionMin;
 	m_collisionMax = other.m_collisionMax;
@@ -275,6 +278,7 @@ Model &Model::operator=(const Model &other)
 	m_textureGroups = other.m_textureGroups;
 	m_matLoadCallbacks = other.m_matLoadCallbacks;
 	m_onAllMatsLoadedCallbacks = other.m_onAllMatsLoadedCallbacks;
+	static_assert(sizeof(Model) == 976,"Update this function when making changes to this class!");
 	return *this;
 }
 
@@ -294,7 +298,7 @@ void Model::Rotate(const Quat &rot)
 	{
 		if(anim->HasFlag(FAnim::Gesture) == true)
 			continue; // Don't rotate delta animations
-		anim->Rotate(skeleton,rot);
+		pragma::animation::skeletal::rotate(*anim,rot);
 	}
 	for(auto &vertAnim : m_vertexAnimations)
 		vertAnim->Rotate(rot);
@@ -303,8 +307,8 @@ void Model::Rotate(const Quat &rot)
 		for(auto &mesh : meshGroup->GetMeshes())
 			mesh->Rotate(rot);
 	}
-	m_reference->Rotate(rot);
-	GenerateBindPoseMatrices();
+	for(auto &pose : m_referencePose->GetTransforms())
+		pose.RotateGlobal(rot);
 }
 
 void Model::Translate(const Vector3 &t)
@@ -320,15 +324,15 @@ void Model::Translate(const Vector3 &t)
 	{
 		if(anim->HasFlag(FAnim::Gesture) == true)
 			continue; // Don't rotate delta animations
-		anim->Translate(skeleton,t);
+		pragma::animation::skeletal::translate(*anim,t);
 	}
 	for(auto &meshGroup : m_meshGroups)
 	{
 		for(auto &mesh : meshGroup->GetMeshes())
 			mesh->Translate(t);
 	}
-	m_reference->Translate(t);
-	GenerateBindPoseMatrices();
+	for(auto &pose : m_referencePose->GetTransforms())
+		pose.TranslateGlobal(t);
 }
 
 void Model::Scale(const Vector3 &scale)
@@ -340,7 +344,7 @@ void Model::Scale(const Vector3 &scale)
 	for(auto &colMesh : m_collisionMeshes)
 		colMesh->Scale(scale);
 	for(auto &anim : m_animations)
-		anim->Scale(scale);
+		pragma::animation::skeletal::scale(*anim,scale);
 	for(auto &vertAnim : m_vertexAnimations)
 		vertAnim->Scale(scale);
 	for(auto &meshGroup : m_meshGroups)
@@ -348,22 +352,8 @@ void Model::Scale(const Vector3 &scale)
 		for(auto &mesh : meshGroup->GetMeshes())
 			mesh->Scale(scale);
 	}
-	m_reference->Scale(scale);
-	GenerateBindPoseMatrices();
-}
-
-void Model::GenerateBindPoseMatrices()
-{
-	auto &bones = GetSkeleton().GetBones();
-	for(auto i=decltype(bones.size()){0};i<bones.size();++i)
-	{
-		auto &pos = *m_reference->GetBonePosition(i);
-		auto &rot = *m_reference->GetBoneOrientation(i);
-
-		auto m = glm::toMat4(rot);
-		m = glm::translate(m,pos);
-		SetBindPoseBoneMatrix(i,m);
-	}
+	for(auto &pose : m_referencePose->GetTransforms())
+		pose.Scale(scale);
 }
 
 uint32_t Model::GetVertexCount() const {return m_vertexCount;}
@@ -429,8 +419,9 @@ uint32_t Model::GetBodyGroupCount() const {return static_cast<uint32_t>(m_bodyGr
 std::vector<BodyGroup> &Model::GetBodyGroups() {return m_bodyGroups;}
 void Model::Remove() {delete this;}
 bool Model::IsRootBone(uint32_t boneId) const {return m_skeleton->IsRootBone(boneId);}
-bool Model::GetLocalBonePosition(uint32_t animId,uint32_t frameId,uint32_t boneId,Vector3 &rPos,Quat &rRot,Vector3 *scale)
+bool Model::GetLocalBonePosition(uint32_t animId,float t,uint32_t boneId,Vector3 &rPos,Quat &rRot,Vector3 *scale)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	rPos = Vector3{0.f,0.f,0.f};
 	rRot = uquat::identity();
 	if(scale != nullptr)
@@ -442,32 +433,30 @@ bool Model::GetLocalBonePosition(uint32_t animId,uint32_t frameId,uint32_t boneI
 	auto anim = GetAnimation(animId);
 	if(anim == nullptr)
 		return false;
-	auto frame = anim->GetFrame(frameId);
-	if(frame == nullptr)
-		return false;
-	auto *pos = frame->GetBonePosition(boneId);
-	auto *rot = frame->GetBoneOrientation(boneId);
-	if(scale != nullptr)
-	{
-		auto *pScale = frame->GetBoneScale(boneId);
-		if(pScale != nullptr)
-			*scale = *pScale;
-	}
-	if(pos == nullptr)
-		return false;
-	rPos = *pos;
-	rRot = *rot;
+	auto getBonePose = [&skeleton,&anim,t](Bone &bone) -> umath::ScaledTransform {
+		umath::ScaledTransform pose {};
+		const pragma::animation::AnimationChannel *posChannel = nullptr;
+		const pragma::animation::AnimationChannel *rotChannel = nullptr;
+		const pragma::animation::AnimationChannel *scaleChannel = nullptr;
+		pragma::animation::skeletal::find_bone_channels(*anim,bone.ID,&posChannel,&rotChannel,&scaleChannel);
+		if(posChannel)
+			pose.SetOrigin(posChannel->GetInterpolatedValue<Vector3>(t));
+		if(rotChannel)
+			pose.SetRotation(rotChannel->GetInterpolatedValue<Quat>(t));
+		if(scaleChannel)
+			pose.SetScale(scaleChannel->GetInterpolatedValue<Vector3>(t));
+		return pose;
+	};
+	auto pose = getBonePose(*bone);
 	auto parent = bone->parent.lock();
-	while(parent != nullptr)
+	while(parent)
 	{
-		auto *posParent = frame->GetBonePosition(parent->ID);
-		auto *rotParent = frame->GetBoneOrientation(parent->ID);
-		uvec::rotate(&rPos,*rotParent);
-		rPos += *posParent;
-		rRot = *rotParent *rRot;
+		pose = getBonePose(*parent) *pose;
 		parent = parent->parent.lock();
 	}
 	return true;
+#endif
+	return false;
 }
 util::WeakHandle<const Model> Model::GetHandle() const
 {
@@ -478,9 +467,8 @@ util::WeakHandle<Model> Model::GetHandle()
 	return util::WeakHandle<Model>(std::static_pointer_cast<Model>(shared_from_this()));
 }
 
-Frame &Model::GetReference() {return *m_reference;}
-const Frame &Model::GetReference() const {return *m_reference;}
-void Model::SetReference(std::shared_ptr<Frame> frame) {m_reference = frame;}
+void Model::SetReference(const std::shared_ptr<pragma::animation::AnimatedPose> &pose) {m_referencePose = pose;}
+pragma::animation::AnimatedPose &Model::GetReference() {return *m_referencePose;}
 const std::vector<JointInfo> &Model::GetJoints() const {return const_cast<Model*>(this)->GetJoints();}
 std::vector<JointInfo> &Model::GetJoints() {return m_joints;}
 JointInfo &Model::AddJoint(JointType type,BoneId child,BoneId parent)
@@ -1642,7 +1630,7 @@ std::optional<float> Model::CalcFlexWeight(
 	return opStack.top();
 }
 
-uint32_t Model::AddAnimation(const std::string &name,const std::shared_ptr<Animation> &anim)
+uint32_t Model::AddAnimation(const std::string &name,const std::shared_ptr<pragma::animation::Animation> &anim)
 {
 	auto lname = name;
 	ustring::to_lower(lname);
@@ -1669,7 +1657,7 @@ void Model::GetAnimations(std::unordered_map<std::string,uint32_t> **anims) {*an
 const Skeleton &Model::GetSkeleton() const {return *m_skeleton;}
 Skeleton &Model::GetSkeleton() {return *m_skeleton;}
 
-std::shared_ptr<Animation> Model::GetAnimation(uint32_t ID)
+std::shared_ptr<pragma::animation::Animation> Model::GetAnimation(pragma::animation::AnimationId ID) const
 {
 	if(ID >= m_animations.size())
 		return nullptr;
@@ -1693,8 +1681,8 @@ bool Model::HasVertexWeights() const
 	}
 	return false;
 }
-const std::vector<std::shared_ptr<Animation>> &Model::GetAnimations() const {return const_cast<Model*>(this)->GetAnimations();}
-std::vector<std::shared_ptr<Animation>> &Model::GetAnimations() {return m_animations;}
+const std::vector<std::shared_ptr<pragma::animation::Animation>> &Model::GetAnimations() const {return const_cast<Model*>(this)->GetAnimations();}
+std::vector<std::shared_ptr<pragma::animation::Animation>> &Model::GetAnimations() {return m_animations;}
 bool Model::GetAnimationName(uint32_t animId,std::string &name) const
 {
 	auto it = std::find_if(m_animationIDs.begin(),m_animationIDs.end(),[animId](const std::pair<std::string,uint32_t> &pair) {
@@ -1800,56 +1788,27 @@ int32_t Model::LookupAttachment(const std::string &name)
 
 std::optional<umath::ScaledTransform> Model::CalcReferenceAttachmentPose(int32_t attId) const
 {
+	auto &reference = GetReference();
 	auto *att = const_cast<Model*>(this)->GetAttachment(attId);
 	if(att == nullptr)
 		return {};
+	auto *pose = reference.GetTransform(att->bone);
+	if(!pose)
+		return {};
 	umath::ScaledTransform t {att->offset,uquat::create(att->angles)};
-	auto &reference = GetReference();
-	auto *bonePos = reference.GetBonePosition(att->bone);
-	auto *boneRot = reference.GetBoneOrientation(att->bone);
-	auto *boneScale = reference.GetBoneScale(att->bone);
-	t = umath::ScaledTransform {
-		bonePos ? *bonePos : Vector3{},
-		boneRot ? *boneRot : uquat::identity(),
-		boneScale ? *boneScale : Vector3{1.f,1.f,1.f}
-	} *t;
-	return t;
+	return *pose *t;
 }
 
 std::optional<umath::ScaledTransform> Model::CalcReferenceBonePose(int32_t boneId) const
 {
 	auto &reference = GetReference();
-	auto *bonePos = reference.GetBonePosition(boneId);
-	auto *boneRot = reference.GetBoneOrientation(boneId);
-	auto *boneScale = reference.GetBoneScale(boneId);
-	return umath::ScaledTransform {
-		bonePos ? *bonePos : Vector3{},
-		boneRot ? *boneRot : uquat::identity(),
-		boneScale ? *boneScale : Vector3{1.f,1.f,1.f}
-	};
+	auto *pose = reference.GetTransform(boneId);
+	if(!pose)
+		return {};
+	return *pose;
 }
 
 uint32_t Model::GetBoneCount() const {return m_skeleton->GetBoneCount();}
-
-Mat4 *Model::GetBindPoseBoneMatrix(uint32_t boneID)
-{
-	if(boneID >= m_bindPose.size())
-		return nullptr;
-	return &m_bindPose[boneID];
-}
-
-void Model::SetBindPoseBoneMatrix(uint32_t boneID,Mat4 mat)
-{
-	if(boneID >= m_bindPose.size())
-	{
-		auto numBones = m_skeleton->GetBoneCount();
-		if(numBones > m_bindPose.size() && boneID < numBones)
-			m_bindPose.resize(numBones);
-		else
-			return;
-	}
-	m_bindPose[boneID] = mat;
-}
 
 void Model::SetMass(float mass) {m_mass = mass;}
 float Model::GetMass() const {return m_mass;}
@@ -1857,13 +1816,13 @@ uint8_t Model::GetAnimationActivityWeight(uint32_t animation) const
 {
 	if(animation >= m_animations.size())
 		return 0;
-	return m_animations[animation]->GetActivityWeight();
+	return pragma::animation::skeletal::get_activity_weight(*m_animations[animation]);
 }
 Activity Model::GetAnimationActivity(uint32_t animation) const
 {
 	if(animation >= m_animations.size())
 		return Activity::Invalid;
-	return m_animations[animation]->GetActivity();
+	return pragma::animation::skeletal::get_activity(*m_animations[animation]);
 }
 float Model::GetAnimationDuration(uint32_t animation)
 {
@@ -1873,12 +1832,16 @@ float Model::GetAnimationDuration(uint32_t animation)
 }
 int Model::SelectFirstAnimation(Activity activity) const
 {
-	auto it = std::find_if(m_animations.begin(),m_animations.end(),[activity](const std::shared_ptr<Animation> &anim) {
-		return anim->GetActivity() == activity;
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	auto it = std::find_if(m_animations.begin(),m_animations.end(),[activity](const std::shared_ptr<pragma::Animation> &anim) {
+		return pragma::animation::skeletal::get_activity(*anim) == activity;
 	});
 	if(it == m_animations.end())
 		return -1;
 	return it -m_animations.begin();
+#else
+	return -1;
+#endif
 }
 int32_t Model::SelectWeightedAnimation(Activity activity,int32_t animIgnore)
 {
@@ -1891,11 +1854,11 @@ int32_t Model::SelectWeightedAnimation(Activity activity,int32_t animIgnore)
 		auto &anim = m_animations[i];
 		if(i != animIgnore || !anim->HasFlag(FAnim::NoRepeat))
 		{
-			if(anim->GetActivity() == activity)
+			if(pragma::animation::skeletal::get_activity(*anim) == activity)
 			{
-				weightSum += anim->GetActivityWeight();
+				weightSum += pragma::animation::skeletal::get_activity_weight(*anim);
 				animations.push_back(static_cast<int32_t>(i));
-				weights.push_back(anim->GetActivityWeight());
+				weights.push_back(pragma::animation::skeletal::get_activity_weight(*anim));
 			}
 		}
 		else
@@ -1913,7 +1876,7 @@ int32_t Model::SelectWeightedAnimation(Activity activity,int32_t animIgnore)
 	for(auto animId : animations)
 	{
 		auto &anim = m_animations[animId];
-		auto weight = anim->GetActivityWeight();
+		auto weight = pragma::animation::skeletal::get_activity_weight(*anim);
 		if(r < weight)
 			return animId;
 		r -= weight;
@@ -1925,7 +1888,7 @@ void Model::GetAnimations(Activity activity,std::vector<uint32_t> &animations)
 	for(auto i=decltype(m_animations.size()){0};i<m_animations.size();++i)
 	{
 		auto &anim = m_animations[i];
-		if(anim->GetActivity() == activity)
+		if(pragma::animation::skeletal::get_activity(*anim) == activity)
 			animations.push_back(static_cast<int32_t>(i));
 	}
 }

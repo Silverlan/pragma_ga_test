@@ -227,10 +227,10 @@ Bool SBaseEntity::ReceiveNetEvent(pragma::BasePlayerComponent &pl,pragma::NetEve
 	return false;
 }
 
-util::WeakHandle<pragma::BaseAnimatedComponent> SBaseEntity::GetAnimatedComponent() const
+util::WeakHandle<pragma::BaseSkAnimatedComponent> SBaseEntity::GetSkAnimatedComponent() const
 {
-	auto pComponent = GetComponent<pragma::SAnimatedComponent>();
-	return pComponent.valid() ? std::static_pointer_cast<pragma::BaseAnimatedComponent>(pComponent->shared_from_this()) : util::WeakHandle<pragma::BaseAnimatedComponent>{};
+	auto pComponent = GetComponent<pragma::SSkAnimatedComponent>();
+	return pComponent.valid() ? std::static_pointer_cast<pragma::BaseSkAnimatedComponent>(pComponent->shared_from_this()) : util::WeakHandle<pragma::BaseSkAnimatedComponent>{};
 }
 util::WeakHandle<pragma::BaseWeaponComponent> SBaseEntity::GetWeaponComponent() const
 {

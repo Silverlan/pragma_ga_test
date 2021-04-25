@@ -15,25 +15,26 @@ using namespace pragma;
 
 extern DLLSERVER ServerState *server;
 
-void SAnimatedComponent::Initialize()
+void SSkAnimatedComponent::Initialize()
 {
-	BaseAnimatedComponent::Initialize();
+	BaseSkAnimatedComponent::Initialize();
 }
-luabind::object SAnimatedComponent::InitializeLuaObject(lua_State *l) {return BaseEntityComponent::InitializeLuaObject<SAnimatedComponentHandleWrapper>(l);}
-void SAnimatedComponent::RegisterEvents(pragma::EntityComponentManager &componentManager)
+luabind::object SSkAnimatedComponent::InitializeLuaObject(lua_State *l) {return BaseEntityComponent::InitializeLuaObject<SSkAnimatedComponentHandleWrapper>(l);}
+void SSkAnimatedComponent::RegisterEvents(pragma::EntityComponentManager &componentManager)
 {
-	BaseAnimatedComponent::RegisterEvents(componentManager);
+	BaseSkAnimatedComponent::RegisterEvents(componentManager);
 }
-void SAnimatedComponent::GetBaseTypeIndex(std::type_index &outTypeIndex) const {outTypeIndex = std::type_index(typeid(BaseAnimatedComponent));}
-void SAnimatedComponent::SendData(NetPacket &packet,networking::ClientRecipientFilter &rp)
+void SSkAnimatedComponent::GetBaseTypeIndex(std::type_index &outTypeIndex) const {outTypeIndex = std::type_index(typeid(BaseSkAnimatedComponent));}
+void SSkAnimatedComponent::SendData(NetPacket &packet,networking::ClientRecipientFilter &rp)
 {
 	packet->Write<int>(GetAnimation());
 	packet->Write<float>(GetCycle());
 }
 
-void SAnimatedComponent::PlayAnimation(int animation,FPlayAnim flags)
+void SSkAnimatedComponent::PlayAnimation(animation::AnimationId animation,FPlayAnim flags)
 {
-	BaseAnimatedComponent::PlayAnimation(animation,flags);
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	BaseSkAnimatedComponent::PlayAnimation(animation,flags);
 
 	auto &ent = static_cast<SBaseEntity&>(GetEntity());
 	if(ent.IsShared() == false)
@@ -45,13 +46,15 @@ void SAnimatedComponent::PlayAnimation(int animation,FPlayAnim flags)
 		p->Write<int>(GetBaseAnimationInfo().animation);
 		server->SendPacket("ent_anim_play",p,pragma::networking::Protocol::FastUnreliable);
 	}
+#endif
 }
-void SAnimatedComponent::StopLayeredAnimation(int slot)
+void SSkAnimatedComponent::StopLayeredAnimation(animation::LayeredAnimationSlot slot)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto it = m_animSlots.find(slot);
 	if(it == m_animSlots.end())
 		return;
-	BaseAnimatedComponent::StopLayeredAnimation(slot);
+	BaseSkAnimatedComponent::StopLayeredAnimation(slot);
 	auto &ent = static_cast<SBaseEntity&>(GetEntity());
 	if(ent.IsShared() == false)
 		return;
@@ -63,10 +66,12 @@ void SAnimatedComponent::StopLayeredAnimation(int slot)
 		p->Write<int>(slot);
 		server->SendPacket("ent_anim_gesture_stop",p,pragma::networking::Protocol::SlowReliable);
 	}
+#endif
 }
-void SAnimatedComponent::PlayLayeredAnimation(int slot,int animation,FPlayAnim flags)
+void SSkAnimatedComponent::PlayLayeredAnimation(animation::LayeredAnimationSlot slot,animation::AnimationId animation,FPlayAnim flags)
 {
-	BaseAnimatedComponent::PlayLayeredAnimation(slot,animation,flags);
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	BaseSkAnimatedComponent::PlayLayeredAnimation(slot,animation,flags);
 	auto &ent = static_cast<SBaseEntity&>(GetEntity());
 	if(ent.IsShared() == false)
 		return;
@@ -82,4 +87,5 @@ void SAnimatedComponent::PlayLayeredAnimation(int slot,int animation,FPlayAnim f
 		p->Write<int>(animInfo.animation);
 		server->SendPacket("ent_anim_gesture_play",p,pragma::networking::Protocol::SlowReliable);
 	}
+#endif
 }

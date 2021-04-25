@@ -30,7 +30,7 @@ namespace Intersection {struct LineMeshResult;};
 namespace pragma
 {
 	class CModelComponent;
-	class CAnimatedComponent;
+	class CSkAnimatedComponent;
 	class CAttachableComponent;
 	class CLightMapReceiverComponent;
 	enum class GameShaderSpecialization : uint32_t;
@@ -136,7 +136,7 @@ namespace pragma
 
 		CModelComponent *GetModelComponent() const;
 		CAttachableComponent *GetAttachableComponent() const;
-		CAnimatedComponent *GetAnimatedComponent() const;
+		CSkAnimatedComponent *GetSkAnimatedComponent() const;
 		CLightMapReceiverComponent *GetLightMapReceiverComponent() const;
 
 		void SetExemptFromOcclusionCulling(bool exempt);
@@ -195,7 +195,7 @@ namespace pragma
 
 		// Used for quick access to avoid having to do a lookup on the entity's components
 		mutable CAttachableComponent *m_attachableComponent = nullptr;
-		mutable CAnimatedComponent *m_animComponent = nullptr;
+		mutable CSkAnimatedComponent *m_animComponent = nullptr;
 		mutable CLightMapReceiverComponent *m_lightMapReceiverComponent = nullptr;
 
 		bounding_volume::AABB m_localRenderBounds {};

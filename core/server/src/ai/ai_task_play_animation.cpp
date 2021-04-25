@@ -11,6 +11,7 @@
 #include "pragma/entities/components/s_model_component.hpp"
 #include "pragma/entities/components/s_animated_component.hpp"
 #include <pragma/entities/components/base_transform_component.hpp>
+#include <pragma/entities/components/animated_component.hpp>
 
 using namespace pragma;
 
@@ -164,7 +165,7 @@ bool ai::TaskPlayAnimation::GetFaceTarget(const Schedule *sched,pragma::SAICompo
 
 int32_t ai::TaskPlayAnimation::GetAnimation(pragma::SAIComponent &ent) const
 {
-	auto animComponent = ent.GetEntity().GetAnimatedComponent();
+	auto animComponent = ent.GetEntity().GetSkAnimatedComponent();
 	return animComponent.valid() ? animComponent->GetAnimation() : -1;
 }
 
@@ -214,15 +215,15 @@ ai::BehaviorNode::Result ai::TaskPlayAnimation::Start(const Schedule *sched,prag
 {
 	if(StartTask(sched,ent) == false)
 		return Result::Failed;
-	auto pAnimComponent = ent.GetEntity().GetAnimatedComponent();
+	auto pAnimComponent = ent.GetEntity().GetSkAnimatedComponent();
 	if(pAnimComponent.expired())
 		return Result::Failed;
-	m_cbOnAnimationComplete = pAnimComponent->AddEventCallback(pragma::SAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	m_cbOnAnimationComplete = pAnimComponent->AddEventCallback(pragma::SSkAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		m_resultState = (static_cast<pragma::CEOnAnimationComplete&>(evData.get()).animation == m_animation) ? Result::Succeeded : Result::Failed;
 		Clear();
 		return util::EventReply::Unhandled;
 	});
-	m_cbOnPlayAnimation = pAnimComponent->AddEventCallback(pragma::SAnimatedComponent::EVENT_ON_PLAY_ANIMATION,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	m_cbOnPlayAnimation = pAnimComponent->AddEventCallback(pragma::SSkAnimatedComponent::EVENT_ON_PLAY_ANIMATION,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		m_resultState = Result::Failed;
 		Clear();
 		return util::EventReply::Unhandled;
@@ -237,12 +238,12 @@ ai::TaskPlayLayeredAnimation::TaskPlayLayeredAnimation(ai::SelectorType selector
 {}
 int32_t ai::TaskPlayLayeredAnimation::GetAnimation(pragma::SAIComponent &ent) const
 {
-	auto animComponent = ent.GetEntity().GetAnimatedComponent();
+	auto animComponent = ent.GetEntity().GetSkAnimatedComponent();
 	return animComponent.valid() ? animComponent->GetLayeredAnimation(m_slot) : -1;
 }
 void ai::TaskPlayLayeredAnimation::PlayAnimation(pragma::SAIComponent &ent)
 {
-	auto animComponent = ent.GetEntity().GetAnimatedComponent();
+	auto animComponent = ent.GetEntity().GetSkAnimatedComponent();
 	if(animComponent.expired())
 		return;
 	animComponent->PlayLayeredAnimation(m_slot,m_animation);
@@ -267,10 +268,10 @@ ai::BehaviorNode::Result ai::TaskPlayLayeredAnimation::Start(const ai::Schedule 
 
 	if(StartTask(sched,ent) == false)
 		return Result::Failed;
-	auto pAnimComponent = ent.GetEntity().GetAnimatedComponent();
+	auto pAnimComponent = ent.GetEntity().GetSkAnimatedComponent();
 	if(pAnimComponent.expired())
 		return Result::Failed;
-	m_cbOnAnimationComplete = pAnimComponent->AddEventCallback(pragma::SAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	m_cbOnAnimationComplete = pAnimComponent->AddEventCallback(pragma::SSkAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		auto &animInfo = static_cast<pragma::CELayeredAnimationInfo&>(evData.get());
 		if(animInfo.slot != m_slot)
 			return util::EventReply::Unhandled;
@@ -278,7 +279,7 @@ ai::BehaviorNode::Result ai::TaskPlayLayeredAnimation::Start(const ai::Schedule 
 		Clear();
 		return util::EventReply::Unhandled;
 	});
-	m_cbOnPlayAnimation = pAnimComponent->AddEventCallback(pragma::SAnimatedComponent::EVENT_ON_PLAY_LAYERED_ANIMATION,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	m_cbOnPlayAnimation = pAnimComponent->AddEventCallback(pragma::SSkAnimatedComponent::EVENT_ON_PLAY_LAYERED_ANIMATION,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		auto &animInfo = static_cast<pragma::CEOnPlayLayeredAnimation&>(evData.get());
 		if(animInfo.slot != m_slot)
 			return util::EventReply::Unhandled;

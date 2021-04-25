@@ -8,6 +8,7 @@
 #include "stdafx_shared.h"
 #include "pragma/lua/libraries/limport.hpp"
 #include "pragma/model/modelmesh.h"
+#include "pragma/model/animation/animation.hpp"
 #include "pragma/physics/collisionmesh.h"
 #include "pragma/lua/classes/ldef_model.h"
 #include "pragma/lua/classes/ldef_skeleton.hpp"
@@ -30,6 +31,7 @@ extern DLLNETWORK Engine *engine;
 
 int Lua::import::import_wad(lua_State *l)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto &f = *Lua::CheckFile(l,1);
 	auto &skeleton = *Lua::CheckSkeleton(l,2);
 	std::array<uint8_t,3> header;
@@ -39,7 +41,7 @@ int Lua::import::import_wad(lua_State *l)
 		Lua::PushBool(l,false);
 		return 1;
 	}
-	auto anim = Animation::Create();
+	auto anim = pragma::Animation::Create();
 	auto version = f.Read<uint16_t>();
 	auto flags = f.Read<uint32_t>();
 	auto numBones = f.Read<uint32_t>();
@@ -68,6 +70,8 @@ int Lua::import::import_wad(lua_State *l)
 	anim->Localize(skeleton);
 	Lua::Push<std::shared_ptr<Animation>>(l,anim);
 	return 1;
+#endif
+	return 0;
 }
 int Lua::import::import_wrci(lua_State *l)
 {
@@ -142,6 +146,7 @@ int Lua::import::import_wrci(lua_State *l)
 }
 int Lua::import::import_wrmi(lua_State *l)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto &f = *Lua::CheckFile(l,1);
 	auto &mdl = Lua::Check<Model>(l,2);
 	std::array<uint8_t,4> header;
@@ -298,9 +303,10 @@ int Lua::import::import_wrmi(lua_State *l)
 		}
 	}
 	mdl.Update(ModelUpdateFlags::All);
-	mdl.GenerateBindPoseMatrices();
 	Lua::PushBool(l,true);
 	return 1;
+#endif
+	return 0;
 }
 
 int Lua::import::import_smd(lua_State *l)

@@ -7,6 +7,7 @@
 
 #include "stdafx_shared.h"
 #include "pragma/model/modelmanager.h"
+#include "pragma/model/animation/animation.hpp"
 #include "pragma/asset/util_asset.hpp"
 #include <sharedutils/util_path.hpp>
 
@@ -131,10 +132,11 @@ std::shared_ptr<Model> pragma::asset::ModelManager::CreateModel(const std::strin
 	uint32_t boneCount = (bAddReference == true) ? 1 : 0;
 	auto mdl = CreateModel(boneCount,name);
 	auto &skeleton = mdl->GetSkeleton();
-	auto reference = Animation::Create();
+	auto reference = pragma::animation::Animation::Create();
 
 	if(bAddReference == true)
 	{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 		auto frame = Frame::Create(1);
 		auto *root = new Bone;
 		root->name = "root";
@@ -158,6 +160,7 @@ std::shared_ptr<Model> pragma::asset::ModelManager::CreateModel(const std::strin
 		mdl->AddMeshGroup("reference");
 
 		mdl->CreateTextureGroup();
+#endif
 	}
 
 	if(addToCache)

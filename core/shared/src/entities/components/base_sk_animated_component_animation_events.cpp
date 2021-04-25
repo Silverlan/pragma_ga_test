@@ -6,25 +6,25 @@
  */
 
 #include "stdafx_shared.h"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
 #include "pragma/model/model.h"
 
 using namespace pragma;
 
-BaseAnimatedComponent::CustomAnimationEvent::CustomAnimationEvent(const AnimationEvent &ev)
+BaseSkAnimatedComponent::CustomAnimationEvent::CustomAnimationEvent(const AnimationEvent &ev)
 	: AnimationEvent(ev)
 {}
-BaseAnimatedComponent::CustomAnimationEvent::CustomAnimationEvent(const std::function<void(void)> &f)
+BaseSkAnimatedComponent::CustomAnimationEvent::CustomAnimationEvent(const std::function<void(void)> &f)
 {
 	callback = {true,FunctionCallback<void>::Create(f)};
 }
-BaseAnimatedComponent::CustomAnimationEvent::CustomAnimationEvent(const CallbackHandle &cb)
+BaseSkAnimatedComponent::CustomAnimationEvent::CustomAnimationEvent(const CallbackHandle &cb)
 {
 	callback = {true,cb};
 }
 
-void BaseAnimatedComponent::ApplyAnimationEventTemplate(const TemplateAnimationEvent &t)
+void BaseSkAnimatedComponent::ApplyAnimationEventTemplate(const TemplateAnimationEvent &t)
 {
 	auto mdlComponent = GetEntity().GetModelComponent();
 	auto hModel = mdlComponent ? mdlComponent->GetModel() : nullptr;
@@ -46,7 +46,7 @@ void BaseAnimatedComponent::ApplyAnimationEventTemplate(const TemplateAnimationE
 	auto &events = it1->second;
 	events.push_back(t.ev);
 }
-void BaseAnimatedComponent::ApplyAnimationEventTemplates()
+void BaseSkAnimatedComponent::ApplyAnimationEventTemplates()
 {
 	m_animEvents.clear();
 	auto mdlComponent = GetEntity().GetModelComponent();
@@ -56,7 +56,7 @@ void BaseAnimatedComponent::ApplyAnimationEventTemplates()
 	for(auto &t : m_animEventTemplates)
 		ApplyAnimationEventTemplate(t);
 }
-void BaseAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t frameId,const AnimationEvent &ev)
+void BaseSkAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t frameId,const AnimationEvent &ev)
 {
 	m_animEventTemplates.push_back({});
 	auto &t = m_animEventTemplates.back();
@@ -65,7 +65,7 @@ void BaseAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t frameId,c
 	t.ev = ev;
 	ApplyAnimationEventTemplate(t);
 }
-void BaseAnimatedComponent::AddAnimationEvent(const std::string &name,uint32_t frameId,const AnimationEvent &ev)
+void BaseSkAnimatedComponent::AddAnimationEvent(const std::string &name,uint32_t frameId,const AnimationEvent &ev)
 {
 	m_animEventTemplates.push_back({});
 	auto &t = m_animEventTemplates.back();
@@ -74,7 +74,7 @@ void BaseAnimatedComponent::AddAnimationEvent(const std::string &name,uint32_t f
 	t.ev = ev;
 	ApplyAnimationEventTemplate(t);
 }
-CallbackHandle BaseAnimatedComponent::AddAnimationEvent(const std::string &name,uint32_t frameId,const std::function<void(void)> &f)
+CallbackHandle BaseSkAnimatedComponent::AddAnimationEvent(const std::string &name,uint32_t frameId,const std::function<void(void)> &f)
 {
 	m_animEventTemplates.push_back({});
 	auto &t = m_animEventTemplates.back();
@@ -84,7 +84,7 @@ CallbackHandle BaseAnimatedComponent::AddAnimationEvent(const std::string &name,
 	ApplyAnimationEventTemplate(t);
 	return t.ev.callback.second;
 }
-CallbackHandle BaseAnimatedComponent::AddAnimationEvent(const std::string &name,uint32_t frameId,const CallbackHandle &cb)
+CallbackHandle BaseSkAnimatedComponent::AddAnimationEvent(const std::string &name,uint32_t frameId,const CallbackHandle &cb)
 {
 	m_animEventTemplates.push_back({});
 	auto &t = m_animEventTemplates.back();
@@ -94,8 +94,8 @@ CallbackHandle BaseAnimatedComponent::AddAnimationEvent(const std::string &name,
 	ApplyAnimationEventTemplate(t);
 	return t.ev.callback.second;
 }
-CallbackHandle BaseAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t frameId,const std::function<void(void)> &f) {return AddAnimationEvent(animId,frameId,FunctionCallback<void>::Create(f));}
-CallbackHandle BaseAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t frameId,const CallbackHandle &cb)
+CallbackHandle BaseSkAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t frameId,const std::function<void(void)> &f) {return AddAnimationEvent(animId,frameId,FunctionCallback<void>::Create(f));}
+CallbackHandle BaseSkAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t frameId,const CallbackHandle &cb)
 {
 	m_animEventTemplates.push_back({});
 	auto &t = m_animEventTemplates.back();
@@ -105,12 +105,12 @@ CallbackHandle BaseAnimatedComponent::AddAnimationEvent(uint32_t animId,uint32_t
 	ApplyAnimationEventTemplate(t);
 	return t.ev.callback.second;
 }
-void BaseAnimatedComponent::ClearAnimationEvents()
+void BaseSkAnimatedComponent::ClearAnimationEvents()
 {
 	m_animEvents.clear();
 	m_animEventTemplates.clear();
 }
-void BaseAnimatedComponent::ClearAnimationEvents(uint32_t animId)
+void BaseSkAnimatedComponent::ClearAnimationEvents(uint32_t animId)
 {
 	auto it = m_animEvents.find(animId);
 	if(it != m_animEvents.end())
@@ -125,7 +125,7 @@ void BaseAnimatedComponent::ClearAnimationEvents(uint32_t animId)
 			++it;
 	}
 }
-void BaseAnimatedComponent::ClearAnimationEvents(uint32_t animId,uint32_t frameId)
+void BaseSkAnimatedComponent::ClearAnimationEvents(uint32_t animId,uint32_t frameId)
 {
 	auto it0 = m_animEvents.find(animId);
 	if(it0 != m_animEvents.end())
@@ -144,7 +144,7 @@ void BaseAnimatedComponent::ClearAnimationEvents(uint32_t animId,uint32_t frameI
 			++it;
 	}
 }
-void BaseAnimatedComponent::ClearAnimationEvents(const std::string &anim)
+void BaseSkAnimatedComponent::ClearAnimationEvents(const std::string &anim)
 {
 	auto mdlComponent = GetEntity().GetModelComponent();
 	auto hModel = mdlComponent ? mdlComponent->GetModel() : nullptr;
@@ -164,7 +164,7 @@ void BaseAnimatedComponent::ClearAnimationEvents(const std::string &anim)
 			++it;
 	}
 }
-void BaseAnimatedComponent::ClearAnimationEvents(const std::string &anim,uint32_t frameId)
+void BaseSkAnimatedComponent::ClearAnimationEvents(const std::string &anim,uint32_t frameId)
 {
 	auto mdlComponent = GetEntity().GetModelComponent();
 	auto hModel = mdlComponent ? mdlComponent->GetModel() : nullptr;
@@ -185,7 +185,7 @@ void BaseAnimatedComponent::ClearAnimationEvents(const std::string &anim,uint32_
 	}
 }
 /*
-void BaseAnimatedComponent::RemoveAnimationEvent(uint32_t animId,uint32_t frameId,uint32_t idx)
+void BaseSkAnimatedComponent::RemoveAnimationEvent(uint32_t animId,uint32_t frameId,uint32_t idx)
 {
 	auto it0 = m_animEvents.find(animId);
 	if(it0 == m_animEvents.end())
@@ -205,8 +205,8 @@ void BaseAnimatedComponent::RemoveAnimationEvent(uint32_t animId,uint32_t frameI
 	m_animEvents.erase(it0);
 }
 */
-std::unordered_map<uint32_t,std::unordered_map<uint32_t,std::vector<BaseAnimatedComponent::CustomAnimationEvent>>> &BaseAnimatedComponent::GetAnimationEvents() {return m_animEvents;}
-std::vector<BaseAnimatedComponent::CustomAnimationEvent> *BaseAnimatedComponent::GetAnimationEvents(uint32_t animId,uint32_t frameId)
+std::unordered_map<uint32_t,std::unordered_map<uint32_t,std::vector<BaseSkAnimatedComponent::CustomAnimationEvent>>> &BaseSkAnimatedComponent::GetAnimationEvents() {return m_animEvents;}
+std::vector<BaseSkAnimatedComponent::CustomAnimationEvent> *BaseSkAnimatedComponent::GetAnimationEvents(uint32_t animId,uint32_t frameId)
 {
 	auto it0 = m_animEvents.find(animId);
 	if(it0 == m_animEvents.end())
@@ -216,4 +216,4 @@ std::vector<BaseAnimatedComponent::CustomAnimationEvent> *BaseAnimatedComponent:
 		return nullptr;
 	return &it1->second;
 }
-void BaseAnimatedComponent::InjectAnimationEvent(const AnimationEvent &ev) {HandleAnimationEvent(ev);}
+void BaseSkAnimatedComponent::InjectAnimationEvent(const AnimationEvent &ev) {HandleAnimationEvent(ev);}

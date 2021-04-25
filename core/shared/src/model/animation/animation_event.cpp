@@ -7,7 +7,7 @@
 
 #include "stdafx_shared.h"
 #include "pragma/model/animation/animation_event.h"
-#include "pragma/model/animation/animation.h"
+#include "pragma/model/animation/animation.hpp"
 
 DLLNETWORK std::unordered_map<int32_t,std::string> ANIMATION_EVENT_NAMES = {
 	{umath::to_integral(AnimationEvent::Type::EmitSound),"EVENT_EMITSOUND"},
@@ -17,6 +17,7 @@ DLLNETWORK std::unordered_map<int32_t,std::string> ANIMATION_EVENT_NAMES = {
 
 void pragma::register_engine_animation_events()
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto &reg = Animation::GetEventEnumRegister();
 	for(auto i=std::underlying_type_t<AnimationEvent::Type>{0};i<umath::to_integral(AnimationEvent::Type::Count);++i)
 	{
@@ -25,4 +26,5 @@ void pragma::register_engine_animation_events()
 		auto id = reg.RegisterEnum(it->second);
 		assert(id == i);
 	}
+#endif
 }

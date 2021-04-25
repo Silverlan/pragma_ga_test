@@ -6,19 +6,19 @@
  */
 
 #include "stdafx_shared.h"
-#include "pragma/model/animation/animation.h"
+#include "pragma/model/animation/animation.hpp"
+#include "pragma/model/animation/animated_pose.hpp"
+#include "pragma/model/animation/animation_channel.hpp"
+#include "pragma/model/animation/skeletal_animation.hpp"
 #include "pragma/model/animation/activities.h"
+#include "pragma/model/model.h"
 #include <udm.hpp>
 #include <mathutil/umath.h>
 #pragma optimize("",off)
-decltype(Animation::s_activityEnumRegister) Animation::s_activityEnumRegister;
-decltype(Animation::s_eventEnumRegister) Animation::s_eventEnumRegister;
+decltype(pragma::animation::Animation::s_eventEnumRegister) pragma::animation::Animation::s_eventEnumRegister;
+util::EnumRegister &pragma::animation::Animation::GetEventEnumRegister() {return s_eventEnumRegister;}
 
-util::EnumRegister &Animation::GetActivityEnumRegister() {return s_activityEnumRegister;}
-util::EnumRegister &Animation::GetEventEnumRegister() {return s_eventEnumRegister;}
-
-
-std::shared_ptr<Animation> Animation::Load(const udm::AssetData &data,std::string &outErr,const Skeleton *optSkeleton,const Frame *optReference)
+std::shared_ptr<pragma::animation::Animation> pragma::animation::Animation::Load(const udm::AssetData &data,std::string &outErr,const Skeleton *optSkeleton,const AnimatedPose *optReference)
 {
 	auto anim = Animation::Create();
 	if(anim->LoadFromAssetData(data,outErr,optSkeleton,optReference) == false)
@@ -90,7 +90,7 @@ template<typename T>
 	}
 }
 
-bool Animation::LoadFromAssetData(const udm::AssetData &data,std::string &outErr,const Skeleton *optSkeleton,const Frame *optReference)
+bool pragma::animation::Animation::LoadFromAssetData(const udm::AssetData &data,std::string &outErr,const Skeleton *optSkeleton,const AnimatedPose *optReference)
 {
 	if(data.GetAssetType() != PANIM_IDENTIFIER)
 	{
@@ -107,22 +107,12 @@ bool Animation::LoadFromAssetData(const udm::AssetData &data,std::string &outErr
 	}
 	// if(version > PANIM_VERSION)
 	// 	return false;
-	auto activity = udm["activity"];
-	if(activity && activity->IsType(udm::Type::String))
-	{
-		auto id = Animation::GetActivityEnumRegister().RegisterEnum(activity->GetValue<udm::String>());
-		m_activity = (id != util::EnumRegister::InvalidEnum) ? static_cast<Activity>(id) : Activity::Invalid;
-	}
+	auto udmProperties = udm["properties"];
+	if(udmProperties)
+		m_properties = udmProperties.ClaimOwnership();
+	udm["duration"](m_duration);
 
-	udm["activityWeight"](m_activityWeight);
-	udm["fps"](m_fps);
-
-	float duration = 0.f;
-	udm["duration"](duration);
-
-	m_renderBounds.first = udm["renderBounds"]["min"](Vector3{std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),std::numeric_limits<float>::max()});
-	m_renderBounds.second = udm["renderBounds"]["max"](Vector3{std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest()});
-
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto fadeInTime = udm["fadeInTime"];
 	if(fadeInTime)
 		m_fadeIn = std::make_unique<float>(fadeInTime(0.f));
@@ -408,6 +398,7 @@ bool Animation::LoadFromAssetData(const udm::AssetData &data,std::string &outErr
 			frameEvents.push_back(ev);
 		}
 	}
+#endif
 	return true;
 }
 
@@ -536,12 +527,13 @@ template<class TChannel>
 	channel->AddValue(curVal);
 };
 
-bool Animation::Save(udm::AssetData &outData,std::string &outErr,const Frame *optReference)
+bool pragma::animation::Animation::Save(udm::AssetData &outData,std::string &outErr,const Frame *optReference)
 {
 	outData.SetAssetType(PANIM_IDENTIFIER);
 	outData.SetAssetVersion(PANIM_VERSION);
 	auto udm = *outData;
 
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto act = GetActivity();
 	auto *activityName = Animation::GetActivityEnumRegister().GetEnumName(umath::to_integral(act));
 	if(activityName)
@@ -554,7 +546,8 @@ bool Animation::Save(udm::AssetData &outData,std::string &outErr,const Frame *op
 	udm["renderBounds"]["min"] = renderBounds.first;
 	udm["renderBounds"]["max"] = renderBounds.second;
 
-	udm["fps"] = GetFPS();
+	udm["properties"] = m_properties;
+
 	udm["duration"] = GetDuration();
 
 	if(HasFadeInTime())
@@ -798,10 +791,11 @@ bool Animation::Save(udm::AssetData &outData,std::string &outErr,const Frame *op
 			udmEvent["args"] = ev->arguments;
 		}
 	}
+#endif
 	return true;
 }
 
-bool Animation::SaveLegacy(VFilePtrReal &f)
+bool pragma::animation::Animation::SaveLegacy(VFilePtrReal &f)
 {
 	f->Write<uint32_t>(PRAGMA_ANIMATION_VERSION);
 	auto offsetToLen = f->Tell();
@@ -811,6 +805,7 @@ bool Animation::SaveLegacy(VFilePtrReal &f)
 	auto bMoveZ = ((animFlags &FAnim::MoveZ) == FAnim::MoveZ) ? true : false;
 	auto bHasMovement = (bMoveX || bMoveZ) ? true : false;
 
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto act = GetActivity();
 	auto *activityName = Animation::GetActivityEnumRegister().GetEnumName(umath::to_integral(act));
 	f->WriteString((activityName != nullptr) ? *activityName : "");
@@ -923,40 +918,47 @@ bool Animation::SaveLegacy(VFilePtrReal &f)
 	f->Seek(offsetToLen);
 	f->Write<uint64_t>(len);
 	f->Seek(curOffset);
+#endif
 	return true;
 }
 
-std::shared_ptr<Animation> Animation::Create()
+std::shared_ptr<pragma::animation::Animation> pragma::animation::Animation::Create()
 {
 	return std::shared_ptr<Animation>(new Animation{});
 }
-std::shared_ptr<Animation> Animation::Create(const Animation &other,ShareMode share)
+std::shared_ptr<pragma::animation::Animation> pragma::animation::Animation::Create(const Animation &other,ShareMode share)
 {
 	return std::shared_ptr<Animation>(new Animation{other,share});
 }
 
-Animation::Animation()
-	: m_flags(FAnim::None),m_activity(Activity::Invalid),m_activityWeight(1),m_fps(24),
+pragma::animation::Animation::Animation()
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	: m_flags(FAnim::None),m_activity(Activity::Invalid),m_activityWeight(1),
 	m_fadeIn(nullptr),m_fadeOut(nullptr)
+#endif
 {}
 
-Animation::Animation(const Animation &other,ShareMode share)
-	: m_boneIds(other.m_boneIds),m_boneIdMap(other.m_boneIdMap),m_flags(other.m_flags),m_activity(other.m_activity),
-	m_activityWeight(other.m_activityWeight),m_fps(other.m_fps),m_boneWeights(other.m_boneWeights),
+pragma::animation::Animation::Animation(const Animation &other,ShareMode share)
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	: m_flags(other.m_flags),m_activity(other.m_activity),
+	m_activityWeight(other.m_activityWeight),m_duration(other.m_duration),m_boneWeights(other.m_boneWeights),
 	m_renderBounds(other.m_renderBounds),m_blendController{other.m_blendController}
+#endif
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	m_fadeIn = (other.m_fadeIn != nullptr) ? std::make_unique<float>(*other.m_fadeIn) : nullptr;
 	m_fadeOut = (other.m_fadeOut != nullptr) ? std::make_unique<float>(*other.m_fadeOut) : nullptr;
-
+#endif
 	if((share &ShareMode::Frames) != ShareMode::None)
-		m_frames = other.m_frames;
+		m_channels = other.m_channels;
 	else
 	{
-		m_frames.reserve(other.m_frames.size());
-		for(auto &frame : other.m_frames)
-			m_frames.push_back(Frame::Create(*frame));
+		m_channels.reserve(other.m_channels.size());
+		for(auto &channel : other.m_channels)
+			m_channels.push_back(std::make_shared<AnimationChannel>(*channel));
 	}
 
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	if((share &ShareMode::Events) != ShareMode::None)
 		m_events = other.m_events;
 	else
@@ -970,53 +972,229 @@ Animation::Animation(const Animation &other,ShareMode share)
 				events.push_back(std::make_unique<AnimationEvent>(*ev));
 		}
 	}
-	static_assert(sizeof(Animation) == 312,"Update this function when making changes to this class!");
+	static_assert(sizeof(Animation) == 240,"Update this function when making changes to this class!");
+#endif
 }
 
-void Animation::Reverse()
-{
-	std::reverse(m_frames.begin(),m_frames.end());
-}
-
-void Animation::Rotate(const Skeleton &skeleton,const Quat &rot)
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+void pragma::animation::Animation::Rotate(const Skeleton &skeleton,const Quat &rot)
 {
 	uvec::rotate(&m_renderBounds.first,rot);
 	uvec::rotate(&m_renderBounds.second,rot);
-	for(auto &frame : m_frames)
-		frame->Rotate(*this,skeleton,rot);
+	for(auto &channel : m_channels)
+	{
+		if(channel->IsPositionChannel())
+		{
+			for(auto &v : channel->It<Vector3>())
+				uvec::rotate(&v,rot);
+			continue;
+		}
+		if(channel->IsRotationChannel())
+		{
+			for(auto &v : channel->It<Quat>())
+				v = rot *v;
+			continue;
+		}
+	}
 }
-void Animation::Translate(const Skeleton &skeleton,const Vector3 &t)
+void pragma::animation::Animation::Translate(const Skeleton &skeleton,const Vector3 &t)
 {
 	m_renderBounds.first += t;
 	m_renderBounds.second += t;
-	for(auto &frame : m_frames)
-		frame->Translate(*this,skeleton,t);
+	for(auto &channel : m_channels)
+	{
+		if(!channel->IsPositionChannel())
+			continue;
+		for(auto &v : channel->It<Vector3>())
+			v += t;
+	}
 }
 
-void Animation::Scale(const Vector3 &scale)
+void pragma::animation::Animation::Scale(const Vector3 &scale)
 {
 	m_renderBounds.first *= scale;
 	m_renderBounds.second *= scale;
-	for(auto &frame : m_frames)
-		frame->Scale(scale);
+	for(auto &channel : m_channels)
+	{
+		if(!channel->IsScaleChannel())
+			continue;
+		for(auto &v : channel->It<Vector3>())
+			v *= scale;
+	}
+}
+void pragma::animation::Animation::ToPose(float t,AnimatedPose &outPose,const Skeleton &skeleton,const AnimatedPose *optRefPose)
+{
+	if(optRefPose)
+		outPose = *optRefPose;
+	outPose.SetTransformCount(skeleton.GetBoneCount());
+	auto &poses = outPose.GetTransforms();
+	for(auto &channel : m_channels)
+	{
+		if(channel->target.nodeType != AnimationChannelNodeType::Bone)
+			continue;
+		auto boneId = skeleton.LookupBone(channel->target.node);
+		if(boneId == -1)
+			continue;
+		if(channel->IsPositionChannel())
+		{
+			auto pos = channel->GetInterpolatedValue<Vector3>(t);
+			if(boneId < poses.size())
+				poses[boneId].SetOrigin(pos);
+			continue;
+		}
+		if(channel->IsRotationChannel())
+		{
+			auto rot = channel->GetInterpolatedValue<Quat>(t);
+			if(boneId < poses.size())
+				poses[boneId].SetRotation(rot);
+			continue;
+		}
+		if(channel->IsScaleChannel())
+		{
+			auto scale = channel->GetInterpolatedValue<Vector3>(t);
+			if(boneId < poses.size())
+				poses[boneId].SetScale(scale);
+			continue;
+		}
+	}
 }
 
-int32_t Animation::LookupBone(uint32_t boneId) const
+void pragma::animation::Animation::PopulateFromFrames(const Model &mdl,const std::vector<Frame*> &frames,const std::vector<BoneId> &boneIds)
 {
-	if(boneId < m_boneIds.size() && m_boneIds.at(boneId) == boneId) // Faster than map lookup and this statement is true for most cases
-		return boneId;
-	auto it = m_boneIdMap.find(boneId);
-	if(it == m_boneIdMap.end())
-		return -1;
-	return it->second;
+	auto &skeleton = mdl.GetSkeleton();
+	std::vector<std::array<AnimationChannel*,3>> channels;
+	channels.resize(boneIds.size(),std::array<AnimationChannel*,3>{nullptr,nullptr,nullptr});
+	m_channels.reserve(m_channels.size() +boneIds.size());
+	for(auto i=decltype(boneIds.size()){0u};i<boneIds.size();++i)
+	{
+		auto boneId = boneIds[i];
+		auto bone = skeleton.GetBone(boneId);
+		if(bone.expired())
+			continue;
+		channels[i][0] = AddChannel(AnimationChannelNodeType::Bone,bone.lock()->name,ANIMATION_CHANNEL_PATH_POSITION,ANIMATION_CHANNEL_TYPE_POSITION);
+		channels[i][1] = AddChannel(AnimationChannelNodeType::Bone,bone.lock()->name,ANIMATION_CHANNEL_PATH_ROTATION,ANIMATION_CHANNEL_TYPE_ROTATION);
+		channels[i][2] = AddChannel(AnimationChannelNodeType::Bone,bone.lock()->name,ANIMATION_CHANNEL_PATH_SCALE,ANIMATION_CHANNEL_TYPE_SCALE);
+
+		for(uint8_t j=0;j<3;++j)
+		{
+			channels[i][j]->times.resize(frames.size());
+			channels[i][j]->values.resize(frames.size());
+		}
+		
+		auto &posChannel = channels[i][0];
+		auto &rotChannel = channels[i][1];
+		auto &scaleChannel = channels[i][2];
+		for(auto iframe=decltype(frames.size()){0u};iframe<frames.size();++iframe)
+		{
+			auto &frame = *frames[iframe];
+			umath::ScaledTransform pose;
+			if(frame.GetBonePose(i,pose) == false)
+				continue;
+			/ TODO: Optimize
+		}
+	}
+}
+#endif
+pragma::animation::AnimationChannel *pragma::animation::Animation::AddChannel(AnimationChannelNodeType type,const std::string &node,const std::string &path,udm::Type valueType)
+{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	auto *channel = FindChannel(node,path);
+	if(channel)
+		return (channel->target.nodeType == type && channel->valueType == valueType) ? channel : nullptr;
+	m_channels.push_back(std::make_shared<AnimationChannel>());
+	channel = m_channels.back().get();
+	channel->valueType = valueType;
+	channel->target.nodeType = type;
+	channel->target.node = node;
+	channel->target.path = path;
+	return channel;
+#else
+	return nullptr;
+#endif
 }
 
-void Animation::CalcRenderBounds(Model &mdl)
+pragma::animation::AnimationChannel *pragma::animation::Animation::FindChannel(const std::string &node,const std::string &path)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	auto it = std::find_if(m_channels.begin(),m_channels.end(),[&node,&path](const std::shared_ptr<AnimationChannel> &channel) {
+		return channel->target.node == node && channel->target.path == path;
+	});
+	if(it == m_channels.end())
+		return nullptr;
+	return it->get();
+#else
+	return nullptr;
+#endif
+}
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+void pragma::animation::Animation::FindBoneChannels(const std::string &boneName,AnimationChannel **outPos,AnimationChannel **outRot,AnimationChannel **outScale)
+{
+	for(auto &channel : m_channels)
+	{
+		if(channel->target.nodeType != pragma::animation::AnimationChannelNodeType::Bone || ustring::compare(boneName,channel->target.node,false) == false)
+			continue;
+		if(channel->IsPositionChannel())
+		{
+			if(outPos)
+				*outPos = channel.get();
+			continue;
+		}
+		if(channel->IsRotationChannel())
+		{
+			if(outRot)
+				*outRot = channel.get();
+			continue;
+		}
+		if(channel->IsScaleChannel())
+		{
+			if(outScale)
+				*outScale = channel.get();
+			continue;
+		}
+	}
+}
+void pragma::animation::Animation::FindBoneChannels(const std::string &boneName,const AnimationChannel **outPos,const AnimationChannel **outRot,const AnimationChannel **outScale) const
+{
+	return const_cast<Animation*>(this)->FindBoneChannels(boneName,const_cast<AnimationChannel**>(outPos),const_cast<AnimationChannel**>(outRot),const_cast<AnimationChannel**>(outScale));
+}
+
+void pragma::animation::Animation::CalcRenderBounds(Model &mdl)
+{
+	// TODO: Base animation / gesture
 	m_renderBounds = {
 		{std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),std::numeric_limits<float>::max()},
 		{std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest(),std::numeric_limits<float>::lowest()}
 	};
+	auto duration = GetDuration();
+	constexpr uint32_t SAMPLE_RATE = 24; // Samples per second
+	auto dt = 1.f /static_cast<float>(SAMPLE_RATE);
+	auto &hitboxes = mdl.GetHitboxes();
+	auto &skeleton = mdl.GetSkeleton();
+	auto &refPose = mdl.GetReference();
+	pragma::AnimatedPose pose;
+	for(auto &channel : m_channels)
+	{
+		if(channel->target.nodeType != AnimationChannelNodeType::Bone || !channel->IsPositionChannel())
+			continue;
+		auto boneId = skeleton.LookupBone(channel->target.node);
+		if(boneId == -1)
+			continue;
+		auto it = hitboxes.find(boneId);
+		if(it == hitboxes.end())
+			continue;
+		auto &hb = *it;
+
+	}
+
+
+	/*std::unordered_map<BoneId,
+	for(auto t=0.f;t<=duration;t=umath::min<float>(t +dt,duration))
+	{
+		ToPose(t,pose,skeleton,&refPose);
+		pose.Globalize(skeleton);
+
+	}*/
+
 	for(auto &frame : m_frames)
 	{
 		auto frameBounds = frame->CalcRenderBounds(*this,mdl);
@@ -1034,122 +1212,85 @@ void Animation::CalcRenderBounds(Model &mdl)
 		}
 	}
 }
-
-const std::pair<Vector3,Vector3> &Animation::GetRenderBounds() const {return m_renderBounds;}
-void Animation::SetRenderBounds(const Vector3 &min,const Vector3 &max) {m_renderBounds = {min,max};}
-
-std::vector<std::shared_ptr<Frame>> &Animation::GetFrames() {return m_frames;}
-
-void Animation::Localize(const Skeleton &skeleton)
+void SkeletalAnimation::InitializeBoneChannels(const Skeleton &skeleton)
 {
-	for(auto it=m_frames.begin();it!=m_frames.end();++it)
-		(*it)->Localize(*this,skeleton);
+	auto numBones = skeleton.GetBoneCount();
+	m_boneChannels.resize(numBones);
+	for(auto i=decltype(numBones){0u};i<numBones;++i)
+	{
+		auto wpBone = skeleton.GetBone(i);
+		if(wpBone.expired())
+			continue;
+		auto bone = wpBone.lock();
+		pragma::animation::AnimationChannel *posChannel = nullptr;
+		pragma::animation::AnimationChannel *rotChannel = nullptr;
+		pragma::animation::AnimationChannel *scaleChannel = nullptr;
+		Animation::FindBoneChannels(bone->name,&posChannel,&rotChannel,&scaleChannel);
+
+		auto &boneChannels = m_boneChannels[i];
+		if(posChannel)
+			boneChannels.positionChannel = posChannel->shared_from_this();
+		if(rotChannel)
+			boneChannels.rotationChannel = rotChannel->shared_from_this();
+		if(scaleChannel)
+			boneChannels.scaleChannel = scaleChannel->shared_from_this();
+	}
 }
-AnimationBlendController &Animation::SetBlendController(uint32_t controller)
+
+AnimationBlendController &pragma::animation::Animation::SetBlendController(uint32_t controller)
 {
 	m_blendController = AnimationBlendController{};
 	m_blendController->controller = controller;
 	return *m_blendController;
 }
-AnimationBlendController *Animation::GetBlendController() {return m_blendController.has_value() ? &*m_blendController : nullptr;}
-const AnimationBlendController *Animation::GetBlendController() const {return const_cast<Animation*>(this)->GetBlendController();}
-void Animation::ClearBlendController() {m_blendController = {};}
-float Animation::GetFadeInTime()
+AnimationBlendController *pragma::animation::Animation::GetBlendController() {return m_blendController.has_value() ? &*m_blendController : nullptr;}
+const AnimationBlendController *pragma::animation::Animation::GetBlendController() const {return const_cast<Animation*>(this)->GetBlendController();}
+void pragma::animation::Animation::ClearBlendController() {m_blendController = {};}
+#endif
+float pragma::animation::Animation::GetFadeInTime()
 {
-	if(m_fadeIn == nullptr)
+	if(!m_properties)
 		return 0.f;
-	return *m_fadeIn;
+	float fadeIn = 0.f;
+	(*m_properties)["fadeIn"](fadeIn);
+	return fadeIn;
 }
-float Animation::GetFadeOutTime()
+float pragma::animation::Animation::GetFadeOutTime()
 {
-	if(m_fadeOut == nullptr)
+	if(!m_properties)
 		return 0.f;
-	return *m_fadeOut;
+	float fadeIn = 0.f;
+	(*m_properties)["fadeOut"](fadeIn);
+	return fadeIn;
 }
-void Animation::SetFadeInTime(float t)
+void pragma::animation::Animation::SetFadeInTime(float t)
 {
-	if(m_fadeIn == nullptr)
-		m_fadeIn = std::make_unique<float>();
-	*m_fadeIn = t;
-}
-void Animation::SetFadeOutTime(float t)
-{
-	if(m_fadeOut == nullptr)
-		m_fadeOut = std::make_unique<float>();
-	*m_fadeOut = t;
-}
-bool Animation::HasFadeInTime() {return (m_fadeIn != nullptr) ? true : false;}
-bool Animation::HasFadeOutTime() {return (m_fadeOut != nullptr) ? true : false;}
-Activity Animation::GetActivity() const {return m_activity;}
-void Animation::SetActivity(Activity activity) {m_activity = activity;}
-unsigned char Animation::GetActivityWeight() const {return m_activityWeight;}
-void Animation::SetActivityWeight(unsigned char weight) {m_activityWeight = weight;}
-unsigned char Animation::GetFPS() {return m_fps;}
-void Animation::SetFPS(unsigned char fps) {m_fps = fps;}
-float Animation::GetDuration()
-{
-	if(m_fps == 0)
-		return 0.f;
-	return float(m_frames.size()) /float(m_fps);
-}
-
-FAnim Animation::GetFlags() const {return m_flags;}
-void Animation::SetFlags(FAnim flags) {m_flags = flags;}
-bool Animation::HasFlag(FAnim flag) const {return ((m_flags &flag) == flag) ? true : false;}
-void Animation::AddFlags(FAnim flags) {m_flags |= flags;}
-void Animation::RemoveFlags(FAnim flags) {m_flags &= ~flags;}
-
-const std::vector<uint16_t> &Animation::GetBoneList() const {return m_boneIds;}
-const std::unordered_map<uint32_t,uint32_t> &Animation::GetBoneMap() const {return m_boneIdMap;}
-uint32_t Animation::AddBoneId(uint32_t id)
-{
-	auto it = m_boneIdMap.find(id);
-	if(it != m_boneIdMap.end())
-		return it->second;
-	m_boneIds.push_back(id);
-	m_boneIdMap.insert(std::make_pair(id,m_boneIds.size() -1));
-	return m_boneIds.size() -1;
-}
-void Animation::SetBoneId(uint32_t localIdx,uint32_t id)
-{
-	if(localIdx >= m_boneIds.size())
+	if(!m_properties)
 		return;
-	auto &oldId = m_boneIds.at(localIdx);
-	auto it = m_boneIdMap.find(oldId);
-	if(it != m_boneIdMap.end())
-		m_boneIdMap.erase(it);
-
-	oldId = id;
-	m_boneIdMap.insert(std::make_pair(id,localIdx));
+	(*m_properties)["fadeIn"] = t;
 }
-void Animation::SetBoneList(const std::vector<uint16_t> &list)
+void pragma::animation::Animation::SetFadeOutTime(float t)
 {
-	m_boneIds = list;
-	m_boneIdMap.clear();
-	m_boneIdMap.reserve(list.size());
-	for(auto i=decltype(list.size()){0};i<list.size();++i)
-		m_boneIdMap.insert(std::make_pair(list.at(i),i));
+	if(!m_properties)
+		return;
+	(*m_properties)["fadeOut"] = t;
 }
-void Animation::ReserveBoneIds(uint32_t count)
+bool pragma::animation::Animation::HasFadeInTime() {return m_properties && (*m_properties)["fadeIn"];}
+bool pragma::animation::Animation::HasFadeOutTime() {return m_properties && (*m_properties)["fadeOut"];}
+
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+FAnim pragma::animation::Animation::GetFlags() const
 {
-	m_boneIds.reserve(count);
-	m_boneIdMap.reserve(count);
+	auto flags = FAnim::None;
+	if(m_properties)
+		(*m_properties)["flags"](flags);
+	return m_flags;
 }
-
-void Animation::AddFrame(std::shared_ptr<Frame> frame) {m_frames.push_back(frame);}
-
-std::shared_ptr<Frame> Animation::GetFrame(unsigned int ID)
-{
-	if(ID >= m_frames.size())
-		return nullptr;
-	return m_frames[ID];
-}
-
-unsigned int Animation::GetFrameCount() {return CUInt32(m_frames.size());}
-
-unsigned int Animation::GetBoneCount() {return CUInt32(m_boneIds.size());}
-
-void Animation::AddEvent(unsigned int frame,AnimationEvent *ev)
+void pragma::animation::Animation::SetFlags(FAnim flags) {m_flags = flags;}
+bool pragma::animation::Animation::HasFlag(FAnim flag) const {return ((m_flags &flag) == flag) ? true : false;}
+void pragma::animation::Animation::AddFlags(FAnim flags) {m_flags |= flags;}
+void pragma::animation::Animation::RemoveFlags(FAnim flags) {m_flags &= ~flags;}
+void pragma::animation::Animation::AddEvent(unsigned int frame,AnimationEvent *ev)
 {
 	auto it = m_events.find(frame);
 	if(it == m_events.end())
@@ -1157,7 +1298,7 @@ void Animation::AddEvent(unsigned int frame,AnimationEvent *ev)
 	m_events[frame].push_back(std::shared_ptr<AnimationEvent>(ev));
 }
 
-std::vector<std::shared_ptr<AnimationEvent>> *Animation::GetEvents(unsigned int frame)
+std::vector<std::shared_ptr<AnimationEvent>> *pragma::animation::Animation::GetEvents(unsigned int frame)
 {
 	auto it = m_events.find(frame);
 	if(it == m_events.end())
@@ -1165,22 +1306,22 @@ std::vector<std::shared_ptr<AnimationEvent>> *Animation::GetEvents(unsigned int 
 	return &it->second;
 }
 
-float Animation::GetBoneWeight(uint32_t boneId) const
+float pragma::animation::Animation::GetBoneWeight(uint32_t boneId) const
 {
 	auto weight = 1.f;
 	GetBoneWeight(boneId,weight);
 	return weight;
 }
-bool Animation::GetBoneWeight(uint32_t boneId,float &weight) const
+bool pragma::animation::Animation::GetBoneWeight(uint32_t boneId,float &weight) const
 {
 	if(boneId >= m_boneWeights.size())
 		return false;
 	weight = m_boneWeights.at(boneId);
 	return true;
 }
-const std::vector<float> &Animation::GetBoneWeights() const {return const_cast<Animation*>(this)->GetBoneWeights();}
-std::vector<float> &Animation::GetBoneWeights() {return m_boneWeights;}
-void Animation::SetBoneWeight(uint32_t boneId,float weight)
+const std::vector<float> &pragma::animation::Animation::GetBoneWeights() const {return const_cast<Animation*>(this)->GetBoneWeights();}
+std::vector<float> &pragma::animation::Animation::GetBoneWeights() {return m_boneWeights;}
+void pragma::animation::Animation::SetBoneWeight(uint32_t boneId,float weight)
 {
 	if(boneId >= m_boneIds.size())
 		return;
@@ -1188,9 +1329,11 @@ void Animation::SetBoneWeight(uint32_t boneId,float weight)
 		m_boneWeights.resize(m_boneIds.size(),1.f);
 	m_boneWeights.at(boneId) = weight;
 }
+#endif
 
-bool Animation::operator==(const Animation &other) const
+bool pragma::animation::Animation::operator==(const Animation &other) const
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	if(m_frames.size() != other.m_frames.size() || m_boneWeights.size() != other.m_boneWeights.size() || static_cast<bool>(m_fadeIn) != static_cast<bool>(other.m_fadeIn) || static_cast<bool>(m_fadeOut) != static_cast<bool>(other.m_fadeOut) || m_events.size() != other.m_events.size())
 		return false;
 	if(m_fadeIn && umath::abs(*m_fadeIn -*other.m_fadeIn) > 0.001f)
@@ -1215,5 +1358,7 @@ bool Animation::operator==(const Animation &other) const
 	static_assert(sizeof(Animation) == 312,"Update this function when making changes to this class!");
 	return m_boneIds == other.m_boneIds && m_boneIdMap == other.m_boneIdMap && m_flags == other.m_flags && m_activity == other.m_activity &&
 		m_activityWeight == other.m_activityWeight && uvec::cmp(m_renderBounds.first,other.m_renderBounds.first) && uvec::cmp(m_renderBounds.second,other.m_renderBounds.second) && m_blendController == other.m_blendController;
+#endif
+	return false;
 }
 #pragma optimize("",on)

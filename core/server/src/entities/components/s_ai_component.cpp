@@ -181,7 +181,7 @@ void SAIComponent::Initialize()
 		info.SetPlayAsSchedule(false);
 		PlayActivity(Activity::Idle,info);
 	});
-	BindEventUnhandled(SAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+	BindEventUnhandled(SSkAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		if(m_schedule == nullptr && IsMoving() == false)
 		{
 			pragma::SAIComponent::AIAnimationInfo info {};
@@ -201,7 +201,7 @@ void SAIComponent::Initialize()
 			}
 		};*/ // TODO
 	});
-	BindEvent(BaseAnimatedComponent::EVENT_ON_PLAY_ANIMATION,[this](std::reference_wrapper<ComponentEvent> evData) -> util::EventReply {
+	BindEvent(BaseSkAnimatedComponent::EVENT_ON_PLAY_ANIMATION,[this](std::reference_wrapper<ComponentEvent> evData) -> util::EventReply {
 		if(m_bSkipHandling == true)
 			return util::EventReply::Unhandled;
 		AIAnimationInfo info {};
@@ -210,7 +210,7 @@ void SAIComponent::Initialize()
 		return util::EventReply::Handled;
 	});
 
-	BindEventUnhandled(SAnimatedComponent::EVENT_MAINTAIN_ANIMATION_MOVEMENT,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+	BindEventUnhandled(SSkAnimatedComponent::EVENT_MAINTAIN_ANIMATION_MOVEMENT,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		MaintainAnimationMovement(static_cast<CEMaintainAnimationMovement&>(evData.get()).displacement);
 	});
 	BindEvent(SCharacterComponent::EVENT_CALC_MOVEMENT_SPEED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
@@ -449,7 +449,7 @@ bool SAIComponent::TurnStep(const Vector3 &target,float &turnAngle,const float *
 	if(IsAnimationLocked() == true)
 		return r;
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	auto act = animComponent.valid() ? animComponent->GetActivity() : Activity::Invalid;
 
 	if(r == false && IsMoving() == false && (act == Activity::Idle || act == Activity::Invalid))

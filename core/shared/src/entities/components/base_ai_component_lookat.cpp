@@ -10,7 +10,7 @@
 #include "pragma/entities/components/base_character_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/model/model.h"
 
 using namespace pragma;
@@ -55,7 +55,7 @@ void BaseAIComponent::LookAtStep(float tDelta)
 	auto turnAcceleration = maxTurnSpeed /fadeTime; // Reach full acceleration after x seconds
 	m_neckInfo.neckTurned = false;
 
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	auto &hMdl = ent.GetModel();
 	if(hMdl == nullptr || animComponent.expired())
 		return;

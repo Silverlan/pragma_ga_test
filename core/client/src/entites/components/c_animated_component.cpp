@@ -10,6 +10,7 @@
 #include "pragma/entities/components/c_eye_component.hpp"
 #include "pragma/lua/libraries/c_lua_vulkan.h"
 #include "pragma/model/c_vertex_buffer_data.hpp"
+#include <pragma/model/animation/animated_pose.hpp>
 #include <pragma/model/model.h>
 #include <prosper_util.hpp>
 #include <prosper_command_buffer.hpp>
@@ -23,18 +24,18 @@ using namespace pragma;
 
 extern DLLCLIENT CGame *c_game;
 
-ComponentEventId CAnimatedComponent::EVENT_ON_SKELETON_UPDATED = INVALID_COMPONENT_ID;
-ComponentEventId CAnimatedComponent::EVENT_ON_BONE_MATRICES_UPDATED = INVALID_COMPONENT_ID;
-ComponentEventId CAnimatedComponent::EVENT_ON_BONE_BUFFER_INITIALIZED = INVALID_COMPONENT_ID;
-void CAnimatedComponent::RegisterEvents(pragma::EntityComponentManager &componentManager)
+ComponentEventId CSkAnimatedComponent::EVENT_ON_SKELETON_UPDATED = INVALID_COMPONENT_ID;
+ComponentEventId CSkAnimatedComponent::EVENT_ON_BONE_MATRICES_UPDATED = INVALID_COMPONENT_ID;
+ComponentEventId CSkAnimatedComponent::EVENT_ON_BONE_BUFFER_INITIALIZED = INVALID_COMPONENT_ID;
+void CSkAnimatedComponent::RegisterEvents(pragma::EntityComponentManager &componentManager)
 {
-	BaseAnimatedComponent::RegisterEvents(componentManager);
-	EVENT_ON_SKELETON_UPDATED = componentManager.RegisterEvent("ON_SKELETON_UPDATED",std::type_index(typeid(CAnimatedComponent)));
-	EVENT_ON_BONE_MATRICES_UPDATED = componentManager.RegisterEvent("ON_BONE_MATRICES_UPDATED",std::type_index(typeid(CAnimatedComponent)));
+	BaseSkAnimatedComponent::RegisterEvents(componentManager);
+	EVENT_ON_SKELETON_UPDATED = componentManager.RegisterEvent("ON_SKELETON_UPDATED",std::type_index(typeid(CSkAnimatedComponent)));
+	EVENT_ON_BONE_MATRICES_UPDATED = componentManager.RegisterEvent("ON_BONE_MATRICES_UPDATED",std::type_index(typeid(CSkAnimatedComponent)));
 	EVENT_ON_BONE_BUFFER_INITIALIZED = componentManager.RegisterEvent("ON_BONE_BUFFER_INITIALIZED");
 }
-void CAnimatedComponent::GetBaseTypeIndex(std::type_index &outTypeIndex) const {outTypeIndex = std::type_index(typeid(BaseAnimatedComponent));}
-luabind::object CAnimatedComponent::InitializeLuaObject(lua_State *l) {return BaseEntityComponent::InitializeLuaObject<CAnimatedComponentHandleWrapper>(l);}
+void CSkAnimatedComponent::GetBaseTypeIndex(std::type_index &outTypeIndex) const {outTypeIndex = std::type_index(typeid(BaseSkAnimatedComponent));}
+luabind::object CSkAnimatedComponent::InitializeLuaObject(lua_State *l) {return BaseEntityComponent::InitializeLuaObject<CSkAnimatedComponentHandleWrapper>(l);}
 static std::shared_ptr<prosper::IUniformResizableBuffer> s_instanceBoneBuffer = nullptr;
 const std::shared_ptr<prosper::IUniformResizableBuffer> &pragma::get_instance_bone_buffer() {return s_instanceBoneBuffer;}
 void pragma::initialize_articulated_buffers()
@@ -64,13 +65,13 @@ void pragma::initialize_articulated_buffers()
 }
 void pragma::clear_articulated_buffers() {s_instanceBoneBuffer = nullptr;}
 
-void CAnimatedComponent::SetBoneBufferDirty() {umath::set_flag(m_stateFlags,StateFlags::BoneBufferDirty);}
-void CAnimatedComponent::SetSkeletonUpdateCallbacksEnabled(bool enabled) {umath::set_flag(m_stateFlags,StateFlags::EnableSkeletonUpdateCallbacks,enabled);}
-bool CAnimatedComponent::AreSkeletonUpdateCallbacksEnabled() const {return umath::is_flag_set(m_stateFlags,StateFlags::EnableSkeletonUpdateCallbacks);}
+void CSkAnimatedComponent::SetBoneBufferDirty() {umath::set_flag(m_stateFlags,StateFlags::BoneBufferDirty);}
+void CSkAnimatedComponent::SetSkeletonUpdateCallbacksEnabled(bool enabled) {umath::set_flag(m_stateFlags,StateFlags::EnableSkeletonUpdateCallbacks,enabled);}
+bool CSkAnimatedComponent::AreSkeletonUpdateCallbacksEnabled() const {return umath::is_flag_set(m_stateFlags,StateFlags::EnableSkeletonUpdateCallbacks);}
 
-void CAnimatedComponent::Initialize()
+void CSkAnimatedComponent::Initialize()
 {
-	BaseAnimatedComponent::Initialize();
+	BaseSkAnimatedComponent::Initialize();
 	InitializeBoneBuffer();
 
 	/*BindEventUnhandled(LogicComponent::EVENT_ON_TICK,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
@@ -102,15 +103,15 @@ void CAnimatedComponent::Initialize()
 	}
 }
 
-void CAnimatedComponent::OnRemove()
+void CSkAnimatedComponent::OnRemove()
 {
-	BaseAnimatedComponent::OnRemove();
+	BaseSkAnimatedComponent::OnRemove();
 	auto pRenderComponent = GetEntity().GetComponent<CRenderComponent>();
 	if(pRenderComponent.valid())
 		pRenderComponent->SetRenderBufferDirty();
 }
 
-void CAnimatedComponent::ReceiveData(NetPacket &packet)
+void CSkAnimatedComponent::ReceiveData(NetPacket &packet)
 {
 	int anim = packet->Read<int>();
 	float cycle = packet->Read<float>();
@@ -118,17 +119,17 @@ void CAnimatedComponent::ReceiveData(NetPacket &packet)
 	SetCycle(cycle);
 }
 
-std::optional<Mat4> CAnimatedComponent::GetVertexTransformMatrix(const ModelSubMesh &subMesh,uint32_t vertexId) const
+std::optional<Mat4> CSkAnimatedComponent::GetVertexTransformMatrix(const ModelSubMesh &subMesh,uint32_t vertexId) const
 {
 	return GetVertexTransformMatrix(subMesh,vertexId,nullptr,nullptr);
 }
-std::optional<Mat4> CAnimatedComponent::GetVertexTransformMatrix(const ModelSubMesh &subMesh,uint32_t vertexId,Vector3 *optOutNormalOffset,float *optOutDelta) const
+std::optional<Mat4> CSkAnimatedComponent::GetVertexTransformMatrix(const ModelSubMesh &subMesh,uint32_t vertexId,Vector3 *optOutNormalOffset,float *optOutDelta) const
 {
 	if(optOutNormalOffset)
 		*optOutNormalOffset = {};
 	if(optOutDelta)
 		*optOutDelta = 0.f;
-	auto t = BaseAnimatedComponent::GetVertexTransformMatrix(subMesh,vertexId);
+	auto t = BaseSkAnimatedComponent::GetVertexTransformMatrix(subMesh,vertexId);
 	if(t.has_value() == false)
 		return {};
 	Vector3 vertexOffset;
@@ -137,10 +138,10 @@ std::optional<Mat4> CAnimatedComponent::GetVertexTransformMatrix(const ModelSubM
 		return t;
 	return *t *glm::translate(umat::identity(),vertexOffset); // TODO: Confirm order!
 }
-
-void CAnimatedComponent::ResetAnimation(const std::shared_ptr<Model> &mdl)
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+void CSkAnimatedComponent::ResetAnimation(const std::shared_ptr<Model> &mdl)
 {
-	BaseAnimatedComponent::ResetAnimation(mdl);
+	BaseSkAnimatedComponent::ResetAnimation(mdl);
 	m_boneMatrices.clear();
 	if(mdl == nullptr || GetBoneCount() == 0)
 		return;
@@ -202,10 +203,10 @@ void CAnimatedComponent::ResetAnimation(const std::shared_ptr<Model> &mdl)
 		}
 	}
 }
-
-prosper::SwapBuffer *CAnimatedComponent::GetSwapBoneBuffer() {return m_boneBuffer.get();}
-const prosper::IBuffer *CAnimatedComponent::GetBoneBuffer() const {return m_boneBuffer ? &m_boneBuffer->GetBuffer() : nullptr;}
-void CAnimatedComponent::InitializeBoneBuffer()
+#endif
+prosper::SwapBuffer *CSkAnimatedComponent::GetSwapBoneBuffer() {return m_boneBuffer.get();}
+const prosper::IBuffer *CSkAnimatedComponent::GetBoneBuffer() const {return m_boneBuffer ? &m_boneBuffer->GetBuffer() : nullptr;}
+void CSkAnimatedComponent::InitializeBoneBuffer()
 {
 	if(m_boneBuffer != nullptr)
 		return;
@@ -214,28 +215,28 @@ void CAnimatedComponent::InitializeBoneBuffer()
 	CEOnBoneBufferInitialized evData{m_boneBuffer};
 	BroadcastEvent(EVENT_ON_BONE_BUFFER_INITIALIZED,evData);
 }
-void CAnimatedComponent::UpdateBoneBuffer(prosper::IPrimaryCommandBuffer &commandBuffer,bool flagAsDirty)
+void CSkAnimatedComponent::UpdateBoneBuffer(prosper::IPrimaryCommandBuffer &commandBuffer,bool flagAsDirty)
 {
 	auto numBones = GetBoneCount();
 	if(m_boneBuffer && numBones > 0u && m_boneMatrices.empty() == false)
 		m_boneBuffer->Update(0ull,GetBoneCount() *sizeof(Mat4),m_boneMatrices.data(),flagAsDirty);
 }
-const std::vector<Mat4> &CAnimatedComponent::GetBoneMatrices() const {return const_cast<CAnimatedComponent*>(this)->GetBoneMatrices();}
-std::vector<Mat4> &CAnimatedComponent::GetBoneMatrices() {return m_boneMatrices;}
+const std::vector<Mat4> &CSkAnimatedComponent::GetBoneMatrices() const {return const_cast<CSkAnimatedComponent*>(this)->GetBoneMatrices();}
+std::vector<Mat4> &CSkAnimatedComponent::GetBoneMatrices() {return m_boneMatrices;}
 
-bool CAnimatedComponent::MaintainAnimations(double dt)
+bool CSkAnimatedComponent::MaintainAnimations(double dt)
 {
 #pragma message("TODO: Undo this and do it properly!")
 	//if(BaseEntity::MaintainAnimations() == false)
 	//	return false;
 	if(ShouldUpdateBones() == false)
 		return false;
-	BaseAnimatedComponent::MaintainAnimations(dt);
+	BaseSkAnimatedComponent::MaintainAnimations(dt);
 	SetBoneBufferDirty(); // TODO: Only if anything has actually changed
 	return true;
 }
 
-void CAnimatedComponent::UpdateBoneMatricesMT()
+void CSkAnimatedComponent::UpdateBoneMatricesMT()
 {
 	auto &mdl = GetEntity().GetModel();
 	if(mdl == nullptr)
@@ -255,6 +256,7 @@ void CAnimatedComponent::UpdateBoneMatricesMT()
 
 	auto &refFrame = *bindPose;
 	auto numBones = GetBoneCount();
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	if(numBones != m_processedBones.size())
 	{
 		Con::cwar<<"Bone count mismatch between processed bones and actual bones for entity ";
@@ -271,14 +273,13 @@ void CAnimatedComponent::UpdateBoneMatricesMT()
 		auto &orientation = t.GetRotation();
 		auto &scale = t.GetScale();
 
-		auto *posBind = refFrame.GetBonePosition(i);
-		auto *rotBind = refFrame.GetBoneOrientation(i);
-		if(posBind != nullptr && rotBind != nullptr)
+		auto *poseBind = refFrame.GetTransform(i);
+		if(poseBind)
 		{
 			auto &mat = m_boneMatrices[i];
 			if(i != physRootBoneId)
 			{
-				umath::Transform tBindPose {*posBind,*rotBind};
+				umath::Transform tBindPose {*poseBind};
 				tBindPose = tBindPose.GetInverse();
 				umath::ScaledTransform tBone {pos,orientation,scale};
 
@@ -293,9 +294,10 @@ void CAnimatedComponent::UpdateBoneMatricesMT()
 	}
 	if(callbacksEnabled)
 		InvokeEventCallbacks(EVENT_ON_BONE_MATRICES_UPDATED);
+#endif
 }
 
-uint32_t CAnimatedComponent::OnSkeletonUpdated() {return std::numeric_limits<uint32_t>::max();}
+uint32_t CSkAnimatedComponent::OnSkeletonUpdated() {return std::numeric_limits<uint32_t>::max();}
 
 //////////////
 

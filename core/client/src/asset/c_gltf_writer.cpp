@@ -17,7 +17,7 @@
 #include <pragma/model/model.h>
 #include <pragma/model/modelmesh.h>
 #include <pragma/model/animation/vertex_animation.hpp>
-#include <pragma/model/animation/animation.h>
+#include <pragma/model/animation/animation.hpp>
 #include <sharedutils/alpha_mode.hpp>
 #include <sharedutils/util_path.hpp>
 #include <sharedutils/util_file.h>
@@ -333,6 +333,7 @@ bool pragma::asset::GLTFWriter::Export(std::string &outErrMsg,const std::string 
 	uint32_t numFramesTotal = 0;
 	uint32_t numNodes = 0;
 	auto numLights = m_sceneDesc.lightSources.size();
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	for(auto &mdlDesc : m_sceneDesc.modelCollection)
 	{
 		numSubMeshes += mdlDesc.model.GetSubMeshCount();
@@ -344,6 +345,7 @@ bool pragma::asset::GLTFWriter::Export(std::string &outErrMsg,const std::string 
 
 		numNodes += mdlDesc.model.GetSkeleton().GetBoneCount();
 	}
+#endif
 	numNodes += numSubMeshes;
 	numNodes += numLights;
 
@@ -1141,6 +1143,7 @@ void pragma::asset::GLTFWriter::WriteAnimations(::Model &mdl)
 	auto &bones = skeleton.GetBones();
 	m_gltfMdl.animations.reserve(anims.size());
 	auto *animList = m_exportInfo.GetAnimationList();
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	for(auto i=decltype(anims.size()){0u};i<anims.size();++i)
 	{
 		auto &anim = anims.at(i);
@@ -1438,6 +1441,7 @@ void pragma::asset::GLTFWriter::WriteAnimations(::Model &mdl)
 			}
 		}
 	}
+#endif
 }
 
 void pragma::asset::GLTFWriter::GenerateAO(::Model &mdl)

@@ -103,7 +103,7 @@ bool SAIComponent::PlayAnimation(const AIAnimationInfo &info)
 		m_bSkipHandling = false;
 		return true;
 	}
-	auto animComponent = GetEntity().GetAnimatedComponent();
+	auto animComponent = GetEntity().GetSkAnimatedComponent();
 	if(animComponent.expired())
 		return false;
 	m_bSkipHandling = true;

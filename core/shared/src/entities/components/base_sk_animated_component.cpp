@@ -6,13 +6,19 @@
  */
 
 #include "stdafx_shared.h"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
 #include "pragma/entities/components/base_time_scale_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/entities/components/base_sound_emitter_component.hpp"
 #include "pragma/entities/entity_component_system_t.hpp"
 #include "pragma/model/model.h"
+#include "pragma/model/animation/animation_player.hpp"
+#include "pragma/model/animation/skeletal_animation.hpp"
+#include "pragma/model/animation/animated_pose.hpp"
+#include "pragma/model/animation/animation.hpp"
+#include "pragma/model/animation/skeleton.h"
 #include "pragma/audio/alsound_type.h"
 #include "pragma/lua/luafunction_call.h"
 #include <sharedutils/datastream.h>
@@ -22,62 +28,60 @@
 
 using namespace pragma;
 #pragma optimize("",off)
-ComponentEventId BaseAnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_PLAY_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_PLAY_LAYERED_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_PLAY_LAYERED_ACTIVITY = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_START = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_COMPLETE = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_ANIMATION_START = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_TRANSLATE_LAYERED_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_TRANSLATE_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_TRANSLATE_ACTIVITY = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_MAINTAIN_ANIMATIONS = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_MAINTAIN_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_MAINTAIN_ANIMATION_MOVEMENT = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_SHOULD_UPDATE_BONES = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_PLAY_LAYERED_ANIMATION = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_PLAY_LAYERED_ACTIVITY = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_START = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_LAYERED_ANIMATION_COMPLETE = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_TRANSLATE_LAYERED_ANIMATION = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_TRANSLATE_ACTIVITY = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_MAINTAIN_ANIMATION_MOVEMENT = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_SHOULD_UPDATE_BONES = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_ANIMATION_RESET = pragma::INVALID_COMPONENT_ID;
 
-ComponentEventId BaseAnimatedComponent::EVENT_ON_PLAY_ACTIVITY = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_STOP_LAYERED_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_BONE_TRANSFORM_CHANGED = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_ANIMATIONS_UPDATED = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_BLEND_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_PLAY_ANIMATION = pragma::INVALID_COMPONENT_ID;
-ComponentEventId BaseAnimatedComponent::EVENT_ON_ANIMATION_RESET = pragma::INVALID_COMPONENT_ID;
-void BaseAnimatedComponent::RegisterEvents(pragma::EntityComponentManager &componentManager)
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_PLAY_ACTIVITY = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_STOP_LAYERED_ANIMATION = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_BONE_TRANSFORM_CHANGED = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_BLEND_ANIMATION = pragma::INVALID_COMPONENT_ID;
+
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_PLAY_ANIMATION = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_ANIMATION_START = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_MAINTAIN_ANIMATIONS = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_ON_ANIMATIONS_UPDATED = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_PLAY_ANIMATION = pragma::INVALID_COMPONENT_ID;
+ComponentEventId BaseSkAnimatedComponent::EVENT_TRANSLATE_ANIMATION = pragma::INVALID_COMPONENT_ID;
+void BaseSkAnimatedComponent::RegisterEvents(pragma::EntityComponentManager &componentManager)
 {
-	auto componentType = std::type_index(typeid(BaseAnimatedComponent));
-	EVENT_HANDLE_ANIMATION_EVENT = componentManager.RegisterEvent("HANDLE_ANIMATION_EVENT",componentType);
-	EVENT_ON_PLAY_ANIMATION = componentManager.RegisterEvent("ON_PLAY_ANIMATION",componentType);
+	auto componentType = std::type_index(typeid(BaseSkAnimatedComponent));
 	EVENT_ON_PLAY_LAYERED_ANIMATION = componentManager.RegisterEvent("ON_PLAY_LAYERED_ANIMATION",componentType);
 	EVENT_ON_PLAY_LAYERED_ACTIVITY = componentManager.RegisterEvent("ON_PLAY_LAYERED_ACTIVITY",componentType);
-	EVENT_ON_ANIMATION_COMPLETE = componentManager.RegisterEvent("ON_ANIMATION_COMPLETE",componentType);
 	EVENT_ON_LAYERED_ANIMATION_START = componentManager.RegisterEvent("ON_LAYERED_ANIMATION_START",componentType);
 	EVENT_ON_LAYERED_ANIMATION_COMPLETE = componentManager.RegisterEvent("ON_LAYERED_ANIMATION_COMPLETE",componentType);
-	EVENT_ON_ANIMATION_START = componentManager.RegisterEvent("ON_ANIMATION_START",componentType);
 	EVENT_TRANSLATE_LAYERED_ANIMATION = componentManager.RegisterEvent("TRANSLATE_LAYERED_ANIMATION",componentType);
-	EVENT_TRANSLATE_ANIMATION = componentManager.RegisterEvent("TRANSLATE_ANIMATION",componentType);
 	EVENT_TRANSLATE_ACTIVITY = componentManager.RegisterEvent("TRANSLATE_ACTIVITY",componentType);
-	EVENT_MAINTAIN_ANIMATIONS = componentManager.RegisterEvent("MAINTAIN_ANIMATIONS",componentType);
-	EVENT_MAINTAIN_ANIMATION = componentManager.RegisterEvent("MAINTAIN_ANIMATION",componentType);
 	EVENT_MAINTAIN_ANIMATION_MOVEMENT = componentManager.RegisterEvent("MAINTAIN_ANIMATION_MOVEMENT",componentType);
 	EVENT_SHOULD_UPDATE_BONES = componentManager.RegisterEvent("SHOULD_UPDATE_BONES",componentType);
 
 	EVENT_ON_PLAY_ACTIVITY = componentManager.RegisterEvent("ON_PLAY_ACTIVITY",componentType);
 	EVENT_ON_STOP_LAYERED_ANIMATION = componentManager.RegisterEvent("ON_STOP_LAYERED_ANIMATION",componentType);
 	EVENT_ON_BONE_TRANSFORM_CHANGED = componentManager.RegisterEvent("ON_BONE_TRANSFORM_CHANGED");
-	EVENT_ON_ANIMATIONS_UPDATED = componentManager.RegisterEvent("ON_ANIMATIONS_UPDATED",componentType);
 	EVENT_ON_BLEND_ANIMATION = componentManager.RegisterEvent("ON_BLEND_ANIMATION",componentType);
-	EVENT_PLAY_ANIMATION = componentManager.RegisterEvent("PLAY_ANIMATION",componentType);
 	EVENT_ON_ANIMATION_RESET = componentManager.RegisterEvent("ON_ANIMATION_RESET");
+	
+	EVENT_ON_PLAY_ANIMATION = componentManager.RegisterEvent("ON_PLAY_ANIMATION",componentType);
+	EVENT_ON_ANIMATION_COMPLETE = componentManager.RegisterEvent("ON_ANIMATION_COMPLETE",componentType);
+	EVENT_ON_ANIMATION_START = componentManager.RegisterEvent("ON_ANIMATION_START",componentType);
+	EVENT_MAINTAIN_ANIMATIONS = componentManager.RegisterEvent("MAINTAIN_ANIMATIONS",componentType);
+	EVENT_ON_ANIMATIONS_UPDATED = componentManager.RegisterEvent("ON_ANIMATIONS_UPDATED",componentType);
+	EVENT_PLAY_ANIMATION = componentManager.RegisterEvent("PLAY_ANIMATION",componentType);
+	EVENT_TRANSLATE_ANIMATION = componentManager.RegisterEvent("TRANSLATE_ANIMATION",componentType);
 }
 
-BaseAnimatedComponent::BaseAnimatedComponent(BaseEntity &ent)
-	: BaseEntityComponent(ent),m_playbackRate(util::FloatProperty::Create(1.f))
+BaseSkAnimatedComponent::BaseSkAnimatedComponent(BaseEntity &ent)
+	: BaseEntityComponent(ent)
 {}
 
-void BaseAnimatedComponent::Initialize()
+void BaseSkAnimatedComponent::Initialize()
 {
 	BaseEntityComponent::Initialize();
 
@@ -97,6 +101,7 @@ void BaseAnimatedComponent::Initialize()
 	});
 
 	auto &ent = GetEntity();
+	ent.AddComponent<AnimatedComponent>();
 	auto *mdlComponent = static_cast<pragma::BaseModelComponent*>(ent.AddComponent("model").get());
 	if(mdlComponent != nullptr)
 	{
@@ -107,7 +112,7 @@ void BaseAnimatedComponent::Initialize()
 	SetTickPolicy(TickPolicy::WhenVisible);
 }
 
-void BaseAnimatedComponent::OnTick(double dt)
+void BaseSkAnimatedComponent::OnTick(double dt)
 {
 	if(ShouldUpdateBones() == false)
 		return;
@@ -116,20 +121,26 @@ void BaseAnimatedComponent::OnTick(double dt)
 	MaintainAnimations(dt *(pTimeScaleComponent.valid() ? pTimeScaleComponent->GetEffectiveTimeScale() : 1.f));
 }
 
-void BaseAnimatedComponent::ResetAnimation(const std::shared_ptr<Model> &mdl)
+void BaseSkAnimatedComponent::OnModelChanged(const std::shared_ptr<Model> &mdl)
 {
-	m_animSlots.clear();
-	m_baseAnim = {};
+	ResetAnimation(mdl);
+	BroadcastEvent(EVENT_ON_ANIMATION_RESET);
+}
+
+void BaseSkAnimatedComponent::ResetAnimation(const std::shared_ptr<Model> &mdl)
+{
+	m_baseAnimationPlayer = nullptr;
+	m_layeredAnimationPlayers.clear();
 	m_blendControllers.clear();
-	m_bones.clear();
-	m_processedBones.clear();
+	m_currentPose.Clear();
+	m_currentPoseEntitySpace.Clear();
 	m_bindPose = nullptr;
 	m_rootPoseBoneId = std::numeric_limits<decltype(m_rootPoseBoneId)>::max();
 	umath::set_flag(m_stateFlags,StateFlags::AbsolutePosesDirty);
 	ApplyAnimationEventTemplates();
 	if(mdl == nullptr || mdl->HasVertexWeights() == false)
 		return;
-	m_bindPose = mdl->GetReference().shared_from_this();
+	m_bindPose = mdl->GetReferencePtr();
 	std::vector<BlendController> &blendControllers = mdl->GetBlendControllers();
 	for(unsigned int i=0;i<blendControllers.size();i++)
 	{
@@ -145,8 +156,6 @@ void BaseAnimatedComponent::ResetAnimation(const std::shared_ptr<Model> &mdl)
 	if(rootPoseBoneId != -1)
 		m_rootPoseBoneId = rootPoseBoneId;
 	Skeleton &skeleton = mdl->GetSkeleton();
-	for(unsigned int i=0;i<skeleton.GetBoneCount();i++)
-		m_bones.push_back({});
 	std::unordered_map<std::string,unsigned int> *animations;
 	mdl->GetAnimations(&animations);
 	std::unordered_map<std::string,unsigned int>::iterator it;
@@ -162,22 +171,11 @@ void BaseAnimatedComponent::ResetAnimation(const std::shared_ptr<Model> &mdl)
 		}
 	}
 
-	auto anim = mdl->GetAnimation(0);
-	auto frame = (anim != nullptr) ? anim->GetFrame(0) : nullptr;
-	if(frame != nullptr)
-	{
-		for(UInt32 i=0;i<anim->GetBoneCount();i++)
-			m_bones[i] = umath::ScaledTransform{*frame->GetBonePosition(i),*frame->GetBoneOrientation(i)};
-	}
+	m_currentPose = mdl->GetReference();
+	m_currentPose.Localize(skeleton);
 }
 
-void BaseAnimatedComponent::OnModelChanged(const std::shared_ptr<Model> &mdl)
-{
-	ResetAnimation(mdl);
-	BroadcastEvent(EVENT_ON_ANIMATION_RESET);
-}
-
-CallbackHandle BaseAnimatedComponent::BindAnimationEvent(AnimationEvent::Type eventId,const std::function<void(std::reference_wrapper<const AnimationEvent>)> &fCallback)
+CallbackHandle BaseSkAnimatedComponent::BindAnimationEvent(AnimationEvent::Type eventId,const std::function<void(std::reference_wrapper<const AnimationEvent>)> &fCallback)
 {
 	auto it = m_boundAnimEvents.find(eventId);
 	if(it != m_boundAnimEvents.end())
@@ -191,23 +189,38 @@ CallbackHandle BaseAnimatedComponent::BindAnimationEvent(AnimationEvent::Type ev
 	return hCb;
 }
 
-bool BaseAnimatedComponent::IsPlayingAnimation() const {return (GetAnimation() >= 0) ? true : false;}
-
-float BaseAnimatedComponent::GetAnimationDuration() const
+animation::AnimationPlayer *BaseSkAnimatedComponent::GetBaseAnimationPlayer() {return m_baseAnimationPlayer.get();}
+animation::AnimationPlayer *BaseSkAnimatedComponent::GetLayeredAnimationPlayer(animation::LayeredAnimationSlot slot)
 {
-	int seq = GetAnimation();
-	if(seq == -1)
-		return 0.f;
-	auto &hModel = GetEntity().GetModel();
-	if(hModel == nullptr)
-		return 0.f;
-	auto anim = hModel->GetAnimation(seq);
-	if(anim == NULL)
-		return 0.f;
-	return (1.f -m_baseAnim.cycle) *anim->GetDuration();
+	auto it = m_layeredAnimationPlayers.find(slot);
+	return (it != m_layeredAnimationPlayers.end()) ? it->second.get() : nullptr;
 }
 
-int BaseAnimatedComponent::SelectWeightedAnimation(Activity activity,int animAvoid) const
+void BaseSkAnimatedComponent::OnEntityComponentAdded(BaseEntityComponent &component)
+{
+	BaseEntityComponent::OnEntityComponentAdded(component);
+	if(typeid(component) == typeid(AnimatedComponent))
+		m_baseAnimationPlayer = static_cast<AnimatedComponent&>(component).AddAnimationPlayer();
+}
+void BaseSkAnimatedComponent::OnEntityComponentRemoved(BaseEntityComponent &component)
+{
+	BaseEntityComponent::OnEntityComponentRemoved(component);
+	if(typeid(component) == typeid(AnimatedComponent))
+	{
+		m_baseAnimationPlayer = nullptr;
+		m_layeredAnimationPlayers.clear();
+	}
+}
+
+bool BaseSkAnimatedComponent::IsPlayingAnimation() const {return (GetAnimation() >= 0) ? true : false;}
+
+float BaseSkAnimatedComponent::GetRemainingAnimationDuration() const
+{
+	auto *animPlayer = GetBaseAnimationPlayer();
+	return animPlayer ? animPlayer->GetRemainingAnimationDuration() : 0.f;
+}
+
+int BaseSkAnimatedComponent::SelectWeightedAnimation(Activity activity,animation::AnimationId animAvoid) const
 {
 	auto &hModel = GetEntity().GetModel();
 	if(hModel == nullptr)
@@ -215,12 +228,7 @@ int BaseAnimatedComponent::SelectWeightedAnimation(Activity activity,int animAvo
 	return hModel->SelectWeightedAnimation(activity,animAvoid);
 }
 
-void BaseAnimatedComponent::SetLastAnimationBlendScale(float scale)
-{
-	m_baseAnim.lastAnim.blendScale = scale;
-}
-
-void BaseAnimatedComponent::SetBlendController(unsigned int controller,float val)
+void BaseSkAnimatedComponent::SetBlendController(unsigned int controller,float val)
 {
 	auto &hModel = GetEntity().GetModel();
 	if(hModel == nullptr)
@@ -251,7 +259,7 @@ void BaseAnimatedComponent::SetBlendController(unsigned int controller,float val
 	}
 	it->second = val;
 }
-void BaseAnimatedComponent::SetBlendController(const std::string &controller,float val)
+void BaseSkAnimatedComponent::SetBlendController(const std::string &controller,float val)
 {
 	auto mdlComponent = GetEntity().GetModelComponent();
 	if(!mdlComponent)
@@ -261,8 +269,8 @@ void BaseAnimatedComponent::SetBlendController(const std::string &controller,flo
 		return;
 	SetBlendController(id,val);
 }
-const std::unordered_map<unsigned int,float> &BaseAnimatedComponent::GetBlendControllers() const {return m_blendControllers;}
-float BaseAnimatedComponent::GetBlendController(const std::string &controller) const
+const std::unordered_map<unsigned int,float> &BaseSkAnimatedComponent::GetBlendControllers() const {return m_blendControllers;}
+float BaseSkAnimatedComponent::GetBlendController(const std::string &controller) const
 {
 	auto mdlComponent = GetEntity().GetModelComponent();
 	if(!mdlComponent)
@@ -272,73 +280,15 @@ float BaseAnimatedComponent::GetBlendController(const std::string &controller) c
 		return 0.f;
 	return GetBlendController(id);
 }
-float BaseAnimatedComponent::GetBlendController(unsigned int controller) const
+float BaseSkAnimatedComponent::GetBlendController(unsigned int controller) const
 {
 	auto it = m_blendControllers.find(controller);
 	if(it == m_blendControllers.end())
 		return 0;
 	return it->second;
 }
-static Frame *get_frame_from_cycle(Animation &anim,float cycle,uint32_t frameOffset=0)
-{
-	return anim.GetFrame(static_cast<uint32_t>((anim.GetFrameCount() -1) *cycle) +frameOffset).get();
-}
-bool BaseAnimatedComponent::GetBlendFramesFromCycle(Animation &anim,float cycle,Frame **outFrameSrc,Frame **outFrameDst,float &outInterpFactor,int32_t frameOffset)
-{
-	auto frameVal = (anim.GetFrameCount() -1) *cycle;
-	outInterpFactor = frameVal -static_cast<float>(umath::floor(frameVal));
-	*outFrameSrc = anim.GetFrame(umath::max(static_cast<int32_t>(frameVal) +frameOffset,0)).get();
-	if(*outFrameSrc == nullptr)
-		return false;
-	auto *f = anim.GetFrame(umath::max(static_cast<int32_t>(frameVal) +1 +frameOffset,0)).get();
-	if(f == *outFrameSrc) // No need to blend if both frames are the same
-	{
-		outInterpFactor = 0.f;
-		*outFrameDst = nullptr;
-	}
-	else
-		*outFrameDst = f;
-	return true;
-}
-void BaseAnimatedComponent::GetAnimationBlendController(Animation *anim,float cycle,std::array<AnimationBlendInfo,2> &bcFrames,float *blendScale) const
-{
-	// Obsolete; TODO: Remove this!
-}
-Frame *BaseAnimatedComponent::GetPreviousAnimationBlendFrame(AnimationSlotInfo &animInfo,double tDelta,float &blendScale)
-{
-	auto mdlComponent = GetEntity().GetModelComponent();
-	auto &hModel = GetEntity().GetModel();
-	if(hModel == nullptr)
-		return nullptr;
-	Frame *frameLastAnim = nullptr;
-	auto &lastAnim = animInfo.lastAnim;
-	if(lastAnim.animation != -1)
-	{
-		lastAnim.blendTimeScale.second -= static_cast<float>(tDelta);
-		if(lastAnim.blendTimeScale.second <= 0.f)
-		{
-			lastAnim.blendTimeScale = {0.f,0.f};
-			lastAnim.animation = -1;
-		}
-		else
-		{
-			auto anim = hModel->GetAnimation(lastAnim.animation);
-			if(anim != nullptr)
-			{
-				auto frameLast = umath::floor((anim->GetFrameCount() -1) *lastAnim.cycle);
-				frameLastAnim = anim->GetFrame(frameLast).get();
-			}
-		}
-		blendScale = ((lastAnim.blendTimeScale.first != 0.f) ? (lastAnim.blendTimeScale.second /lastAnim.blendTimeScale.first) : 0.f) *lastAnim.blendScale;
-	}
-	return frameLastAnim;
-}
-void BaseAnimatedComponent::ApplyAnimationBlending(AnimationSlotInfo &animInfo,double tDelta)
-{
-	// TODO: This is obsolete, remove it!
-}
-
-bool BaseAnimatedComponent::MaintainAnimation(AnimationSlotInfo &animInfo,double dt,int32_t layeredSlot)
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+bool BaseSkAnimatedComponent::MaintainAnimation(AnimationSlotInfo &animInfo,double dt,int32_t layeredSlot)
 {
 	auto &hModel = GetEntity().GetModel();
 	if(hModel == nullptr)
@@ -353,10 +303,7 @@ bool BaseAnimatedComponent::MaintainAnimation(AnimationSlotInfo &animInfo,double
 	if(anim == nullptr)
 		return false;
 	auto act = anim->GetActivity();
-	auto numFrames = anim->GetFrameCount();
-	auto animSpeed = GetPlaybackRate();
-	if(numFrames > 0)
-		animSpeed *= static_cast<float>(anim->GetFPS()) /static_cast<float>(numFrames);
+	auto animSpeed = GetPlaybackRate() *anim->GetAnimationSpeedFactor();
 
 	auto &cycle = animInfo.cycle;
 	auto cycleLast = cycle;
@@ -619,14 +566,14 @@ bool BaseAnimatedComponent::MaintainAnimation(AnimationSlotInfo &animInfo,double
 	eventItem.lastFrame = frameLast;
 	return true;
 }
+#endif
+void BaseSkAnimatedComponent::SetBindPose(const std::shared_ptr<pragma::animation::AnimatedPose> &bindPose) {m_bindPose = bindPose;}
+const pragma::animation::AnimatedPose *BaseSkAnimatedComponent::GetBindPose() const {return m_bindPose.get();}
 
-void BaseAnimatedComponent::SetBindPose(const Frame &frame) {m_bindPose = frame.shared_from_this();}
-const Frame *BaseAnimatedComponent::GetBindPose() const {return m_bindPose.get();}
-
-void BaseAnimatedComponent::SetAnimatedRootPoseTransformEnabled(bool enabled) {umath::set_flag(m_stateFlags,StateFlags::RootPoseTransformEnabled,enabled);}
-bool BaseAnimatedComponent::IsAnimatedRootPoseTransformEnabled() const {return umath::is_flag_set(m_stateFlags,StateFlags::RootPoseTransformEnabled);}
-
-BoneId BaseAnimatedComponent::AddRootPoseBone()
+void BaseSkAnimatedComponent::SetAnimatedRootPoseTransformEnabled(bool enabled) {umath::set_flag(m_stateFlags,StateFlags::RootPoseTransformEnabled,enabled);}
+bool BaseSkAnimatedComponent::IsAnimatedRootPoseTransformEnabled() const {return umath::is_flag_set(m_stateFlags,StateFlags::RootPoseTransformEnabled);}
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+BoneId BaseSkAnimatedComponent::AddRootPoseBone()
 {
 	auto &ent = GetEntity();
 	auto &mdl = ent.GetModel();
@@ -649,10 +596,12 @@ BoneId BaseAnimatedComponent::AddRootPoseBone()
 	SetRootPoseBoneId(boneId);
 	return boneId;
 }
-void BaseAnimatedComponent::SetRootPoseBoneId(BoneId boneId) {m_rootPoseBoneId = boneId;}
+#endif
+void BaseSkAnimatedComponent::SetRootPoseBoneId(BoneId boneId) {m_rootPoseBoneId = boneId;}
 
-bool BaseAnimatedComponent::MaintainAnimations(double dt)
+bool BaseSkAnimatedComponent::MaintainAnimations(double dt)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto &hModel = GetEntity().GetModel();
 	if(hModel == nullptr)
 		return false;
@@ -711,7 +660,7 @@ bool BaseAnimatedComponent::MaintainAnimations(double dt)
 	InvokeEventCallbacks(EVENT_ON_ANIMATIONS_UPDATED);
 
 	// It's now safe to execute animation events
-	const auto fHandleAnimationEvents = [this](uint32_t animId,const std::shared_ptr<Animation> &anim,int32_t frameId) {
+	const auto fHandleAnimationEvents = [this](uint32_t animId,const std::shared_ptr<animation::Animation> &anim,int32_t frameId) {
 		auto *events = anim->GetEvents(frameId);
 		if(events)
 		{
@@ -758,25 +707,36 @@ bool BaseAnimatedComponent::MaintainAnimations(double dt)
 		m_animEventQueue.pop();
 	}
 	return r;
+#endif
 }
-Activity BaseAnimatedComponent::TranslateActivity(Activity act)
+Activity BaseSkAnimatedComponent::TranslateActivity(Activity act)
 {
 	CETranslateActivity evTranslateActivityData {act};
 	InvokeEventCallbacks(EVENT_TRANSLATE_ACTIVITY,evTranslateActivityData);
 	return act;
 }
 
-float BaseAnimatedComponent::GetCycle() const {return m_baseAnim.cycle;}
-void BaseAnimatedComponent::SetCycle(float cycle)
+float BaseSkAnimatedComponent::GetCycle() const
 {
-	if(cycle == m_baseAnim.cycle)
+	if(!m_baseAnimationPlayer)
+		return 0.f;
+	return m_baseAnimationPlayer->GetCurrentTime();
+}
+void BaseSkAnimatedComponent::SetCycle(float cycle)
+{
+	if(cycle == GetCycle())
 		return;
-	m_baseAnim.cycle = cycle;
+	if(!m_baseAnimationPlayer)
+		return;
+	m_baseAnimationPlayer->SetCurrentTime(cycle);
 	SetBaseAnimationDirty();
 }
 
-int BaseAnimatedComponent::GetAnimation() const {return m_baseAnim.animation;}
-Animation *BaseAnimatedComponent::GetAnimationObject() const
+animation::AnimationId BaseSkAnimatedComponent::GetAnimation() const
+{
+	return m_baseAnimationPlayer ? m_baseAnimationPlayer->GetCurrentAnimationId() : animation::INVALID_ANIMATION;
+}
+pragma::animation::Animation *BaseSkAnimatedComponent::GetAnimationObject() const
 {
 	auto animId = GetAnimation();
 	if(animId == -1)
@@ -789,23 +749,26 @@ Animation *BaseAnimatedComponent::GetAnimationObject() const
 		return nullptr;
 	return anim.get();
 }
-int32_t BaseAnimatedComponent::GetLayeredAnimation(uint32_t slot) const
+animation::AnimationId BaseSkAnimatedComponent::GetLayeredAnimation(uint32_t slot) const
 {
-	auto it = m_animSlots.find(slot);
-	if(it == m_animSlots.end())
-		return -1;
-	return it->second.animation;
+	auto it = m_layeredAnimationPlayers.find(slot);
+	if(it == m_layeredAnimationPlayers.end())
+		return animation::INVALID_ANIMATION;
+	return it->second->GetCurrentAnimationId();
 }
-Activity BaseAnimatedComponent::GetLayeredActivity(uint32_t slot) const
+Activity BaseSkAnimatedComponent::GetLayeredActivity(uint32_t slot) const
 {
-	auto it = m_animSlots.find(slot);
-	if(it == m_animSlots.end())
+	auto it = m_layeredAnimationPlayers.find(slot);
+	if(it == m_layeredAnimationPlayers.end())
 		return Activity::Invalid;
-	return it->second.activity;
+	auto &hModel = GetEntity().GetModel();
+	auto anim = hModel ? hModel->GetAnimation(it->second->GetCurrentAnimationId()) : nullptr;
+	return anim ? animation::skeletal::get_activity(*anim) : Activity::Invalid;
 }
 
-void BaseAnimatedComponent::PlayAnimation(int animation,FPlayAnim flags)
+void BaseSkAnimatedComponent::PlayAnimation(animation::AnimationId animation,FPlayAnim flags)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto bSkipAnim = false;
 	CEOnPlayAnimation evData{m_baseAnim.animation,animation,flags};
 	if(InvokeEventCallbacks(EVENT_PLAY_ANIMATION,evData) == util::EventReply::Handled)
@@ -881,7 +844,7 @@ void BaseAnimatedComponent::PlayAnimation(int animation,FPlayAnim flags)
 		auto anim = hModel->GetAnimation(animation);
 		if(anim != nullptr)
 		{
-			m_baseAnim.activity = anim->GetActivity();
+			m_baseAnim.activity = pragma::animation::skeletal::get_activity(*anim);
 
 			// We'll set all bones that are unused by the animation to
 			// their respective reference pose
@@ -927,17 +890,17 @@ void BaseAnimatedComponent::PlayAnimation(int animation,FPlayAnim flags)
 
 	CEOnAnimationStart evAnimStartData {m_baseAnim.animation,m_baseAnim.activity,m_baseAnim.flags};
 	InvokeEventCallbacks(EVENT_ON_ANIMATION_START,evAnimStartData);
+#endif
 }
-
-void BaseAnimatedComponent::SetBaseAnimationDirty() {umath::set_flag(m_stateFlags,StateFlags::BaseAnimationDirty,true);}
-
-int32_t BaseAnimatedComponent::SelectTranslatedAnimation(Activity &inOutActivity) const
+void BaseSkAnimatedComponent::SetBaseAnimationDirty() {umath::set_flag(m_stateFlags,StateFlags::BaseAnimationDirty,true);}
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+pragma::animation::AnimationId BaseSkAnimatedComponent::SelectTranslatedAnimation(Activity &inOutActivity) const
 {
-	inOutActivity = const_cast<BaseAnimatedComponent*>(this)->TranslateActivity(inOutActivity);
+	inOutActivity = const_cast<BaseSkAnimatedComponent*>(this)->TranslateActivity(inOutActivity);
 	return SelectWeightedAnimation(inOutActivity,m_baseAnim.animation);
 }
-
-bool BaseAnimatedComponent::PlayActivity(Activity activity,FPlayAnim flags)
+#endif
+bool BaseSkAnimatedComponent::PlayActivity(Activity activity,FPlayAnim flags)
 {
 	if(GetActivity() == activity && (flags &FPlayAnim::Reset) == FPlayAnim::None)
 		return true;
@@ -951,26 +914,17 @@ bool BaseAnimatedComponent::PlayActivity(Activity activity,FPlayAnim flags)
 	return (seq == -1) ? false : true;
 }
 
-Activity BaseAnimatedComponent::GetActivity() const
+Activity BaseSkAnimatedComponent::GetActivity() const
 {
-	if(m_baseAnim.animation == -1)
+	if(!m_baseAnimationPlayer)
 		return Activity::Invalid;
-	if(m_baseAnim.activity != Activity::Invalid)
-		return m_baseAnim.activity;
 	auto &hModel = GetEntity().GetModel();
-	if(hModel == nullptr)
-		return Activity::Invalid;
-	auto anim = hModel->GetAnimation(m_baseAnim.animation);
-	if(anim == NULL)
-		return Activity::Invalid;
-	return anim->GetActivity();
+	auto anim = hModel ? hModel->GetAnimation(m_baseAnimationPlayer->GetCurrentAnimationId()) : nullptr;
+	return anim ? animation::skeletal::get_activity(*anim) : Activity::Invalid;
 }
 
-void BaseAnimatedComponent::SetPlaybackRate(float rate) {*m_playbackRate = rate;}
-float BaseAnimatedComponent::GetPlaybackRate() const {return *m_playbackRate;}
-const util::PFloatProperty &BaseAnimatedComponent::GetPlaybackRateProperty() const {return m_playbackRate;}
-
-void BaseAnimatedComponent::HandleAnimationEvent(const AnimationEvent &ev)
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+void BaseSkAnimatedComponent::HandleAnimationEvent(const AnimationEvent &ev)
 {
 	auto bHandled = false;
 	CEHandleAnimationEvent evData{ev};
@@ -998,14 +952,10 @@ void BaseAnimatedComponent::HandleAnimationEvent(const AnimationEvent &ev)
 			;//Con::cout<<"WARNING: Unhandled animation event "<<ev->eventID<<Con::endl;
 	}
 }
-
-const BaseAnimatedComponent::AnimationSlotInfo &BaseAnimatedComponent::GetBaseAnimationInfo() const {return const_cast<BaseAnimatedComponent&>(*this).GetBaseAnimationInfo();}
-BaseAnimatedComponent::AnimationSlotInfo &BaseAnimatedComponent::GetBaseAnimationInfo() {return m_baseAnim;}
-const std::unordered_map<uint32_t,BaseAnimatedComponent::AnimationSlotInfo> &BaseAnimatedComponent::GetAnimationSlotInfos() const {return const_cast<BaseAnimatedComponent&>(*this).GetAnimationSlotInfos();}
-std::unordered_map<uint32_t,BaseAnimatedComponent::AnimationSlotInfo> &BaseAnimatedComponent::GetAnimationSlotInfos() {return m_animSlots;}
-
-bool BaseAnimatedComponent::PlayAnimation(const std::string &name,FPlayAnim flags)
+#endif
+bool BaseSkAnimatedComponent::PlayAnimation(const std::string &name,FPlayAnim flags)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto mdlComponent = GetEntity().GetModelComponent();
 	if(!mdlComponent)
 		return false;
@@ -1018,10 +968,11 @@ bool BaseAnimatedComponent::PlayAnimation(const std::string &name,FPlayAnim flag
 
 	PlayAnimation(anim,flags);
 	return true;
+#endif
 }
-
-void BaseAnimatedComponent::PlayLayeredAnimation(int slot,int animation,FPlayAnim flags,AnimationSlotInfo **animInfo)
+void BaseSkAnimatedComponent::PlayLayeredAnimation(animation::LayeredAnimationSlot slot,animation::AnimationId animation,FPlayAnim flags)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto prevAnim = GetLayeredAnimation(slot);
 
 	CETranslateLayeredAnimation evData {slot,animation,flags};
@@ -1037,13 +988,17 @@ void BaseAnimatedComponent::PlayLayeredAnimation(int slot,int animation,FPlayAni
 
 	CELayeredAnimationInfo evDataStart {slot,slotInfo.animation,slotInfo.activity};
 	InvokeEventCallbacks(EVENT_ON_LAYERED_ANIMATION_START,evDataStart);
+#endif
 }
-void BaseAnimatedComponent::PlayLayeredAnimation(int slot,int animation,FPlayAnim flags)
+void BaseSkAnimatedComponent::PlayLayeredAnimation(animation::LayeredAnimationSlot slot,animation::AnimationId animation,FPlayAnim flags)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	PlayLayeredAnimation(slot,animation,flags,nullptr);
+#endif
 }
-bool BaseAnimatedComponent::PlayLayeredAnimation(int slot,std::string animation,FPlayAnim flags)
+bool BaseSkAnimatedComponent::PlayLayeredAnimation(animation::LayeredAnimationSlot slot,std::string animation,FPlayAnim flags)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto mdlComponent = GetEntity().GetModelComponent();
 	if(!mdlComponent)
 		return false;
@@ -1052,9 +1007,11 @@ bool BaseAnimatedComponent::PlayLayeredAnimation(int slot,std::string animation,
 		return false;
 	PlayLayeredAnimation(slot,anim,flags);
 	return true;
+#endif
 }
-bool BaseAnimatedComponent::PlayLayeredActivity(int slot,Activity activity,FPlayAnim flags)
+bool BaseSkAnimatedComponent::PlayLayeredActivity(animation::LayeredAnimationSlot slot,Activity activity,FPlayAnim flags)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	CEOnPlayLayeredActivity evData{slot,activity,flags};
 	InvokeEventCallbacks(EVENT_ON_PLAY_LAYERED_ACTIVITY,evData);
 
@@ -1068,22 +1025,30 @@ bool BaseAnimatedComponent::PlayLayeredActivity(int slot,Activity activity,FPlay
 	if(animInfo != nullptr)
 		animInfo->activity = activity;
 	return (seq == -1) ? false : true;
+#endif
 }
-void BaseAnimatedComponent::StopLayeredAnimation(int slot)
+void BaseSkAnimatedComponent::StopLayeredAnimation(animation::LayeredAnimationSlot slot)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto it = m_animSlots.find(slot);
 	if(it == m_animSlots.end())
 		return;
 	CEOnStopLayeredAnimation evData{slot,it->second};
 	InvokeEventCallbacks(EVENT_ON_STOP_LAYERED_ANIMATION,evData);
 	m_animSlots.erase(it);
+#endif
+}
+const pragma::animation::AnimatedPose &BaseSkAnimatedComponent::GetProcessedBones() const {return const_cast<BaseSkAnimatedComponent*>(this)->GetProcessedBones();}
+pragma::animation::AnimatedPose &BaseSkAnimatedComponent::GetProcessedBones()
+{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	return m_processedBones;
+#endif
 }
 
-const std::vector<umath::ScaledTransform> &BaseAnimatedComponent::GetProcessedBones() const {return const_cast<BaseAnimatedComponent*>(this)->GetProcessedBones();}
-std::vector<umath::ScaledTransform> &BaseAnimatedComponent::GetProcessedBones() {return m_processedBones;}
-
-bool BaseAnimatedComponent::CalcAnimationMovementSpeed(float *x,float *z,int32_t frameOffset) const
+bool BaseSkAnimatedComponent::CalcAnimationMovementSpeed(float *x,float *z,int32_t frameOffset) const
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto &ent = GetEntity();
 	auto &hMdl = ent.GetModel();
 	auto animId = GetAnimation();
@@ -1115,8 +1080,8 @@ bool BaseAnimatedComponent::CalcAnimationMovementSpeed(float *x,float *z,int32_t
 	if(z != nullptr)
 		*z = mvOffset.y;
 	return true;
+#endif
 }
-
 static void write_anim_flags(udm::LinkedPropertyWrapper &udm,FPlayAnim flags)
 {
 	udm::write_flag(udm["flags"],flags,FPlayAnim::Reset,"reset");
@@ -1137,7 +1102,8 @@ static FPlayAnim read_anim_flags(udm::LinkedPropertyWrapper &udm)
 	return flags;
 }
 
-static void write_animation_slot_info(udm::LinkedPropertyWrapper &udm,const BaseAnimatedComponent::AnimationSlotInfo &slotInfo)
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+static void write_animation_slot_info(udm::LinkedPropertyWrapper &udm,const BaseSkAnimatedComponent::AnimationSlotInfo &slotInfo)
 {
 	udm["activity"] = slotInfo.activity;
 	udm["animation"] = slotInfo.animation;
@@ -1156,8 +1122,10 @@ static void write_animation_slot_info(udm::LinkedPropertyWrapper &udm,const Base
 	udm["lastAnimation"]["blendFadeOut"] = slotInfo.lastAnim.blendTimeScale.second;
 	udm["lastAnimation"]["blendScale"] = slotInfo.lastAnim.blendScale;
 }
-void BaseAnimatedComponent::Save(udm::LinkedPropertyWrapper &udm)
+#endif
+void BaseSkAnimatedComponent::Save(udm::LinkedPropertyWrapper &udm)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	BaseEntityComponent::Save(udm);
 	udm["playbackRate"] = GetPlaybackRate();
 
@@ -1185,8 +1153,11 @@ void BaseAnimatedComponent::Save(udm::LinkedPropertyWrapper &udm)
 	}
 
 	udm["animDisplacement"] = m_animDisplacement;
+#endif
 }
-static void read_animation_slot_info(udm::LinkedPropertyWrapper &udm,BaseAnimatedComponent::AnimationSlotInfo &slotInfo)
+
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+static void read_animation_slot_info(udm::LinkedPropertyWrapper &udm,BaseSkAnimatedComponent::AnimationSlotInfo &slotInfo)
 {
 	udm["activity"](slotInfo.activity);
 	udm["animation"](slotInfo.animation);
@@ -1205,8 +1176,11 @@ static void read_animation_slot_info(udm::LinkedPropertyWrapper &udm,BaseAnimate
 	slotInfo.lastAnim.flags = read_anim_flags(udm["lastAnimation"]["flags"]);
 	udm["lastAnimation"]["blendScale"](slotInfo.lastAnim.blendScale);
 }
-void BaseAnimatedComponent::Load(udm::LinkedPropertyWrapper &udm,uint32_t version)
+#endif
+
+void BaseSkAnimatedComponent::Load(udm::LinkedPropertyWrapper &udm,uint32_t version)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	BaseEntityComponent::Load(udm,version);
 	auto playbackRate = GetPlaybackRate();;
 	udm["playbackRate"](playbackRate);
@@ -1242,39 +1216,14 @@ void BaseAnimatedComponent::Load(udm::LinkedPropertyWrapper &udm,uint32_t versio
 	}
 
 	udm["animDisplacement"](m_animDisplacement);
+#endif
 }
-
 /////////////////
 
-CEHandleAnimationEvent::CEHandleAnimationEvent(const AnimationEvent &animationEvent)
-	: animationEvent(animationEvent)
+CESkelOnPlayAnimation::CESkelOnPlayAnimation(animation::AnimationId prevAnim,animation::AnimationId animation,pragma::FPlayAnim flags)
+	: previousAnimation{prevAnim},animation(animation),flags(flags)
 {}
-void CEHandleAnimationEvent::PushArguments(lua_State *l)
-{
-	Lua::PushInt(l,static_cast<int32_t>(animationEvent.eventID));
-
-	auto tArgs = Lua::CreateTable(l);
-	auto &args = animationEvent.arguments;
-	for(auto i=decltype(args.size()){0};i<args.size();++i)
-	{
-		Lua::PushInt(l,i +1);
-		Lua::PushString(l,args.at(i));
-		Lua::SetTableValue(l,tArgs);
-	}
-}
-void CEHandleAnimationEvent::PushArgumentVariadic(lua_State *l)
-{
-	auto &args = animationEvent.arguments;
-	for(auto &arg : args)
-		Lua::PushString(l,arg);
-}
-
-/////////////////
-
-CEOnPlayAnimation::CEOnPlayAnimation(int32_t previousAnimation,int32_t animation,pragma::FPlayAnim flags)
-	: previousAnimation(previousAnimation),animation(animation),flags(flags)
-{}
-void CEOnPlayAnimation::PushArguments(lua_State *l)
+void CESkelOnPlayAnimation::PushArguments(lua_State *l)
 {
 	Lua::PushInt(l,previousAnimation);
 	Lua::PushInt(l,animation);
@@ -1283,18 +1232,18 @@ void CEOnPlayAnimation::PushArguments(lua_State *l)
 
 /////////////////
 
-CEOnPlayLayeredAnimation::CEOnPlayLayeredAnimation(int32_t slot,int32_t previousAnimation,int32_t animation,pragma::FPlayAnim flags)
-	: CEOnPlayAnimation(previousAnimation,animation,flags),slot(slot)
+CEOnPlayLayeredAnimation::CEOnPlayLayeredAnimation(animation::LayeredAnimationSlot slot,animation::AnimationId previousAnimation,animation::AnimationId animation,pragma::FPlayAnim flags)
+	: CESkelOnPlayAnimation(previousAnimation,animation,flags),slot(slot)
 {}
 void CEOnPlayLayeredAnimation::PushArguments(lua_State *l)
 {
-	CEOnPlayAnimation::PushArguments(l);
+	CESkelOnPlayAnimation::PushArguments(l);
 	Lua::PushInt(l,slot);
 }
 
 /////////////////
 
-CETranslateLayeredActivity::CETranslateLayeredActivity(int32_t &slot,Activity &activity,pragma::FPlayAnim &flags)
+CETranslateLayeredActivity::CETranslateLayeredActivity(animation::LayeredAnimationSlot &slot,Activity &activity,pragma::FPlayAnim &flags)
 	: slot(slot),activity(activity),flags(flags)
 {}
 void CETranslateLayeredActivity::PushArguments(lua_State *l)
@@ -1316,18 +1265,7 @@ void CETranslateLayeredActivity::HandleReturnValues(lua_State *l)
 
 /////////////////
 
-CEOnAnimationComplete::CEOnAnimationComplete(int32_t animation,Activity activity)
-	: animation(animation),activity(activity)
-{}
-void CEOnAnimationComplete::PushArguments(lua_State *l)
-{
-	Lua::PushInt(l,animation);
-	Lua::PushInt(l,umath::to_integral(activity));
-}
-
-/////////////////
-
-CELayeredAnimationInfo::CELayeredAnimationInfo(int32_t slot,int32_t animation,Activity activity)
+CELayeredAnimationInfo::CELayeredAnimationInfo(animation::LayeredAnimationSlot slot,animation::AnimationId animation,Activity activity)
 	: slot(slot),animation(animation),activity(activity)
 {}
 void CELayeredAnimationInfo::PushArguments(lua_State *l)
@@ -1339,19 +1277,7 @@ void CELayeredAnimationInfo::PushArguments(lua_State *l)
 
 /////////////////
 
-CEOnAnimationStart::CEOnAnimationStart(int32_t animation,Activity activity,pragma::FPlayAnim flags)
-	: animation(animation),activity(activity),flags(flags)
-{}
-void CEOnAnimationStart::PushArguments(lua_State *l)
-{
-	Lua::PushInt(l,animation);
-	Lua::PushInt(l,umath::to_integral(activity));
-	Lua::PushInt(l,umath::to_integral(flags));
-}
-
-/////////////////
-
-CETranslateLayeredAnimation::CETranslateLayeredAnimation(int32_t &slot,int32_t &animation,pragma::FPlayAnim &flags)
+CETranslateLayeredAnimation::CETranslateLayeredAnimation(animation::LayeredAnimationSlot &slot,animation::AnimationId &animation,pragma::FPlayAnim &flags)
 	: slot(slot),animation(animation),flags(flags)
 {}
 void CETranslateLayeredAnimation::PushArguments(lua_State *l)
@@ -1365,25 +1291,6 @@ void CETranslateLayeredAnimation::HandleReturnValues(lua_State *l)
 {
 	if(Lua::IsSet(l,-3))
 		slot = Lua::CheckInt(l,-3);
-	if(Lua::IsSet(l,-2))
-		animation = Lua::CheckInt(l,-2);
-	if(Lua::IsSet(l,-1))
-		flags = static_cast<pragma::FPlayAnim>(Lua::CheckInt(l,-1));
-}
-
-/////////////////
-
-CETranslateAnimation::CETranslateAnimation(int32_t &animation,pragma::FPlayAnim &flags)
-	: animation(animation),flags(flags)
-{}
-void CETranslateAnimation::PushArguments(lua_State *l)
-{
-	Lua::PushInt(l,animation);
-	Lua::PushInt(l,umath::to_integral(flags));
-}
-uint32_t CETranslateAnimation::GetReturnCount() {return 2;}
-void CETranslateAnimation::HandleReturnValues(lua_State *l)
-{
 	if(Lua::IsSet(l,-2))
 		animation = Lua::CheckInt(l,-2);
 	if(Lua::IsSet(l,-1))
@@ -1443,7 +1350,7 @@ void CEOnPlayActivity::PushArguments(lua_State *l)
 
 /////////////////
 
-CEOnPlayLayeredActivity::CEOnPlayLayeredActivity(int slot,Activity activity,FPlayAnim flags)
+CEOnPlayLayeredActivity::CEOnPlayLayeredActivity(animation::LayeredAnimationSlot slot,Activity activity,FPlayAnim flags)
 	: slot{slot},activity{activity},flags{flags}
 {}
 void CEOnPlayLayeredActivity::PushArguments(lua_State *l)
@@ -1455,47 +1362,12 @@ void CEOnPlayLayeredActivity::PushArguments(lua_State *l)
 
 /////////////////
 
-CEOnStopLayeredAnimation::CEOnStopLayeredAnimation(int32_t slot,BaseAnimatedComponent::AnimationSlotInfo &slotInfo)
-	: slot{slot},slotInfo{slotInfo}
+CEOnStopLayeredAnimation::CEOnStopLayeredAnimation(animation::LayeredAnimationSlot slot)
+	: slot{slot}
 {}
 void CEOnStopLayeredAnimation::PushArguments(lua_State *l)
 {
 	Lua::PushInt(l,slot);
-	Lua::PushInt(l,slotInfo.animation);
-	Lua::PushInt(l,umath::to_integral(slotInfo.activity));
-}
-
-/////////////////
-
-CEOnBlendAnimation::CEOnBlendAnimation(BaseAnimatedComponent::AnimationSlotInfo &slotInfo,Activity activity,std::vector<umath::Transform> &bonePoses,std::vector<Vector3> *boneScales)
-	: slotInfo{slotInfo},activity{activity},bonePoses{bonePoses},boneScales{boneScales}
-{}
-void CEOnBlendAnimation::PushArguments(lua_State *l)
-{
-	Lua::PushInt(l,slotInfo.animation);
-	Lua::PushInt(l,umath::to_integral(activity));
-}
-
-/////////////////
-
-CEMaintainAnimations::CEMaintainAnimations(double deltaTime)
-	: deltaTime{deltaTime}
-{}
-void CEMaintainAnimations::PushArguments(lua_State *l)
-{
-	Lua::PushNumber(l,deltaTime);
-}
-
-/////////////////
-
-CEMaintainAnimation::CEMaintainAnimation(BaseAnimatedComponent::AnimationSlotInfo &slotInfo,double deltaTime)
-	: slotInfo{slotInfo},deltaTime{deltaTime}
-{}
-void CEMaintainAnimation::PushArguments(lua_State *l)
-{
-	Lua::PushInt(l,slotInfo.animation);
-	Lua::PushInt(l,umath::to_integral(slotInfo.activity));
-	Lua::PushNumber(l,deltaTime);
 }
 
 /////////////////

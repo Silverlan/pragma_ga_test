@@ -24,6 +24,7 @@ static uint16_t get_bone_index(const std::vector<uint16_t> *optBoneList,unsigned
 
 static void get_global_bone_transforms(const Animation *optAnim,const Skeleton &skeleton,Frame &frame)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto *boneList = optAnim ? &optAnim->GetBoneList() : nullptr;
 	std::function<void(Frame&,const std::unordered_map<uint32_t,std::shared_ptr<Bone>>&,const Vector3&,const Quat&)> fGetGlobalBoneTransforms;
 	fGetGlobalBoneTransforms = [&fGetGlobalBoneTransforms,&boneList](Frame &frame,const std::unordered_map<uint32_t,std::shared_ptr<Bone>> &bones,const Vector3 &posParent,const Quat &rotParent) {
@@ -44,10 +45,12 @@ static void get_global_bone_transforms(const Animation *optAnim,const Skeleton &
 		}
 	};
 	fGetGlobalBoneTransforms(frame,skeleton.GetRootBones(),{},uquat::identity());
+#endif
 }
 
 static void get_local_bone_transforms(const Animation *optAnim,const Skeleton &skeleton,Frame &frame)
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	std::function<void(const Animation*,Frame&,const std::unordered_map<uint32_t,std::shared_ptr<Bone>>&)> fGetLocalBoneTransforms;
 	fGetLocalBoneTransforms = [&fGetLocalBoneTransforms](const Animation *optAnim,Frame &frame,const std::unordered_map<uint32_t,std::shared_ptr<Bone>> &bones) {
 		auto *boneList = optAnim ? &optAnim->GetBoneList() : nullptr;
@@ -73,6 +76,7 @@ static void get_local_bone_transforms(const Animation *optAnim,const Skeleton &s
 		}
 	};
 	fGetLocalBoneTransforms(optAnim,frame,skeleton.GetRootBones());
+#endif
 }
 /*
 static void get_global_bone_transforms(Animation *anim,Frame *frame,std::unordered_map<unsigned int,Bone*> &bones,const Vector3 &origin=Vector3(0.f,0.f,0.f),const Quat &originRot=uquat::identity())
@@ -134,6 +138,7 @@ FlexFrameData &Frame::GetFlexFrameData() {return m_flexFrameData;}
 
 std::vector<uint32_t> Frame::GetLocalRootBoneIds(const Animation &anim,const Skeleton &skeleton) const
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto &boneIds = anim.GetBoneList();
 	auto &rootBones = skeleton.GetRootBones();
 	std::vector<uint32_t> localRootBoneIds;
@@ -147,6 +152,9 @@ std::vector<uint32_t> Frame::GetLocalRootBoneIds(const Animation &anim,const Ske
 		localRootBoneIds.push_back(static_cast<uint32_t>(i));
 	}
 	return localRootBoneIds;
+#else
+	return {};
+#endif
 }
 
 void Frame::Rotate(const Quat &rot)
@@ -346,6 +354,7 @@ bool Frame::GetBoneMatrix(unsigned int boneID,Mat4 *mat)
 bool Frame::HasScaleTransforms() const {return !m_scales.empty();}
 std::pair<Vector3,Vector3> Frame::CalcRenderBounds(const Animation &anim,const Model &mdl) const
 {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto *t = const_cast<Frame*>(this);
 	auto transforms = m_bones;
 	t->Globalize(anim,mdl.GetSkeleton());
@@ -406,4 +415,7 @@ std::pair<Vector3,Vector3> Frame::CalcRenderBounds(const Animation &anim,const M
 	}
 	t->m_bones = transforms;
 	return renderBounds;
+#else
+	return {};
+#endif
 }

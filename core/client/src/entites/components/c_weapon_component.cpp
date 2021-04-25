@@ -383,7 +383,7 @@ bool CWeaponComponent::PlayViewActivity(Activity activity,pragma::FPlayAnim flag
 	if(vm == nullptr)
 		return false;
 	activity = TranslateViewActivity(activity);
-	auto pAnimComponent = vm->GetEntity().GetAnimatedComponent();
+	auto pAnimComponent = vm->GetEntity().GetSkAnimatedComponent();
 	if(pAnimComponent.valid())
 		pAnimComponent->PlayActivity(activity,flags);
 	return true;

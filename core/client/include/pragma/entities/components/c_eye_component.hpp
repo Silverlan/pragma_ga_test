@@ -100,7 +100,7 @@ namespace pragma
 		StateFlags m_stateFlags;
 		std::unordered_map<uint32_t,uint32_t> m_skinMaterialIndexToEyeballIndex = {};
 		util::WeakHandle<CFlexComponent> m_flexC = {};
-		util::WeakHandle<CAnimatedComponent> m_animC = {};
+		util::WeakHandle<CSkAnimatedComponent> m_animC = {};
 		uint32_t m_eyeUpDownFlexController = std::numeric_limits<uint32_t>::max();
 		uint32_t m_eyeLeftRightFlexController = std::numeric_limits<uint32_t>::max();
 		uint32_t m_eyeAttachmentIndex = std::numeric_limits<uint32_t>::max();

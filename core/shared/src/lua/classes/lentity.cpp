@@ -29,7 +29,7 @@
 #include "pragma/entities/components/base_ai_component.hpp"
 #include "pragma/entities/components/base_vehicle_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/lua/lentity_type.hpp"
 #include "pragma/lua/classes/lproperty.hpp"
 #include "pragma/lua/l_entity_handles.hpp"
@@ -314,7 +314,7 @@ void Lua::Entity::register_class(luabind::class_<EntityHandle> &classDef)
 	}));
 	classDef.def("GetAnimatedComponent",static_cast<void(*)(lua_State*,EntityHandle&)>([](lua_State *l,EntityHandle &hEnt) {
 		LUA_CHECK_ENTITY(l,hEnt);
-		auto pAnimComponent = hEnt->GetAnimatedComponent();
+		auto pAnimComponent = hEnt->GetSkAnimatedComponent();
 		if(pAnimComponent.expired())
 			return;
 		pAnimComponent->PushLuaObject(l);
@@ -623,14 +623,14 @@ void Lua::Entity::register_class(luabind::class_<EntityHandle> &classDef)
 	}));
 	classDef.def("PlayAnimation",static_cast<void(*)(lua_State*,EntityHandle&,uint32_t,uint32_t)>([](lua_State *l,EntityHandle &hEnt,uint32_t anim,uint32_t flags) {
 		LUA_CHECK_ENTITY(l,hEnt);
-		auto animC = hEnt->GetAnimatedComponent();
+		auto animC = hEnt->GetSkAnimatedComponent();
 		if(animC.expired())
 			return;
 		animC->PlayAnimation(anim,static_cast<pragma::FPlayAnim>(flags));
 	}));
 	classDef.def("PlayAnimation",static_cast<void(*)(lua_State*,EntityHandle&,uint32_t)>([](lua_State *l,EntityHandle &hEnt,uint32_t anim) {
 		LUA_CHECK_ENTITY(l,hEnt);
-		auto animC = hEnt->GetAnimatedComponent();
+		auto animC = hEnt->GetSkAnimatedComponent();
 		if(animC.expired())
 			return;
 		animC->PlayAnimation(anim);

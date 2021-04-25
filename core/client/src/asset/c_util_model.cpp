@@ -16,6 +16,8 @@
 #include "c_gltf_writer.hpp"
 #include <pragma/entities/entity_component_system_t.hpp>
 #include <pragma/model/animation/vertex_animation.hpp>
+#include <pragma/model/animation/skeleton.h>
+#include <pragma/model/animation/animated_pose.hpp>
 #include <sharedutils/util_file.h>
 #include <sharedutils/alpha_mode.hpp>
 #include <sharedutils/util_path.hpp>
@@ -898,7 +900,7 @@ static std::shared_ptr<Model> import_model(VFilePtr optFile,const std::string &o
 
 		// Build reference pose
 		auto &reference = mdl->GetReference();
-		reference.SetBoneCount(skin.joints.size());
+		reference.SetTransformCount(skin.joints.size());
 		for(auto i=decltype(skin.joints.size()){0u};i<skin.joints.size();++i)
 		{
 			auto nodeIdx = skin.joints[i];
@@ -910,7 +912,7 @@ static std::shared_ptr<Model> import_model(VFilePtr optFile,const std::string &o
 				pose.SetRotation(Quat{static_cast<float>(node.rotation[3]),static_cast<float>(node.rotation[0]),static_cast<float>(node.rotation[1]),static_cast<float>(node.rotation[2])});
 			if(!node.scale.empty())
 				pose.SetScale(Vector3{static_cast<float>(node.scale[0]),static_cast<float>(node.scale[1]),static_cast<float>(node.scale[2])});
-			reference.SetBonePose(i,pose);
+			reference.SetTransform(i,pose);
 		}
 
 		for(auto &bone : skeleton.GetBones())
@@ -919,8 +921,8 @@ static std::shared_ptr<Model> import_model(VFilePtr optFile,const std::string &o
 				continue;
 			skeleton.GetRootBones().insert(std::make_pair(bone->ID,bone));
 		}
-		
-		auto refAnim = Animation::Create();
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+		auto refAnim = pragma::Animation::Create();
 		refAnim->ReserveBoneIds(skin.joints.size());
 		for(auto i=decltype(skin.joints.size()){0u};i<skin.joints.size();++i)
 			refAnim->AddBoneId(i);
@@ -929,12 +931,14 @@ static std::shared_ptr<Model> import_model(VFilePtr optFile,const std::string &o
 		refAnim->AddFrame(frame);
 		reference.Globalize(skeleton);
 		mdl->AddAnimation("reference",refAnim);
+#endif
 	}
 
 	auto &skeleton = mdl->GetSkeleton();
 	auto numBones = skeleton.GetBoneCount();
 	for(auto &gltfAnim : gltfMdl.animations)
 	{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 		auto &animName = gltfAnim.name;
 		auto anim = Animation::Create();
 		float fps = 24.f;
@@ -1133,6 +1137,7 @@ static std::shared_ptr<Model> import_model(VFilePtr optFile,const std::string &o
 		for(auto i=decltype(numBones){0u};i<numBones;++i)
 			anim->AddBoneId(i);
 		mdl->AddAnimation(animName,anim);
+#endif
 	}
 
 	if(numBones > umath::to_integral(GameLimits::MaxBones))
@@ -1160,7 +1165,9 @@ static std::shared_ptr<Model> import_model(VFilePtr optFile,const std::string &o
 #endif
 
 	mdl->Update(ModelUpdateFlags::All);
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	mdl->SaveLegacy(c_game,outputPath.GetString() +mdlName,"addons/converted/");
+#endif
 	return mdl;
 }
 std::shared_ptr<Model> pragma::asset::import_model(VFilePtr f,std::string &outErrMsg,const util::Path &outputPath)

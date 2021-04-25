@@ -42,7 +42,7 @@ namespace pragma
 {
 	class BaseEntityComponent;
 	class BaseModelComponent;
-	class BaseAnimatedComponent;
+	class BaseSkAnimatedComponent;
 	class BaseWeaponComponent;
 	class BaseVehicleComponent;
 	class BaseAIComponent;
@@ -132,7 +132,7 @@ public:
 	void SetScale(const Vector3 &scale);
 
 	// Helper functions
-	virtual util::WeakHandle<pragma::BaseAnimatedComponent> GetAnimatedComponent() const=0;
+	virtual util::WeakHandle<pragma::BaseSkAnimatedComponent> GetSkAnimatedComponent() const=0;
 	virtual util::WeakHandle<pragma::BaseWeaponComponent> GetWeaponComponent() const=0;
 	virtual util::WeakHandle<pragma::BaseVehicleComponent> GetVehicleComponent() const=0;
 	virtual util::WeakHandle<pragma::BaseAIComponent> GetAIComponent() const=0;

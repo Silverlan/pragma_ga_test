@@ -439,7 +439,7 @@ void SPlayerComponent::SetCrouchEyeLevel(float eyelevel)
 bool SPlayerComponent::PlaySharedActivity(Activity activity)
 {
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	return animComponent.valid() ? animComponent->PlayActivity(activity,pragma::FPlayAnim::None) : false;
 }
 

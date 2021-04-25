@@ -24,6 +24,7 @@ void CBotComponent::Initialize()
 {
 	BaseBotComponent::Initialize();
 
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	BindEvent(CAnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT,[this](std::reference_wrapper<ComponentEvent> evData) -> util::EventReply {
 		switch(static_cast<CEHandleAnimationEvent&>(evData.get()).animationEvent.eventID)
 		{
@@ -36,6 +37,7 @@ void CBotComponent::Initialize()
 		}
 		return util::EventReply::Unhandled;
 	});
+#endif
 }
 util::EventReply CBotComponent::HandleEvent(ComponentEventId eventId,ComponentEvent &evData)
 {

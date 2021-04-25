@@ -304,6 +304,7 @@ void Lua::Render::GetRenderBuffer(lua_State *l,CRenderHandle &hEnt)
 void Lua::Render::GetBoneBuffer(lua_State *l,CRenderHandle &hEnt)
 {
 	pragma::Lua::check_component(l,hEnt);
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	auto *pAnimComponent = static_cast<pragma::CAnimatedComponent*>(hEnt->GetEntity().GetAnimatedComponent().get());
 	if(pAnimComponent == nullptr)
 		return;
@@ -311,4 +312,5 @@ void Lua::Render::GetBoneBuffer(lua_State *l,CRenderHandle &hEnt)
 	if(!buf)
 		return;
 	Lua::Push(l,buf->shared_from_this());
+#endif
 }

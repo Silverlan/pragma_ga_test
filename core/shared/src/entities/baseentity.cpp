@@ -22,7 +22,7 @@ DEFINE_BASE_HANDLE(DLLNETWORK,BaseEntity,Entity);
 
 bool BaseEntity::IsStatic() const
 {
-	if(GetAnimatedComponent().valid())
+	if(GetSkAnimatedComponent().valid())
 		return false;
 	auto *physComponent = GetPhysicsComponent();
 	auto type = physComponent ? physComponent->GetPhysicsType() : PHYSICSTYPE::NONE;
@@ -280,7 +280,7 @@ bool BaseEntity::IsSpawned() const {return (m_stateFlags &StateFlags::Spawned) !
 
 bool BaseEntity::IsInert() const
 {
-	if(GetAnimatedComponent().valid())
+	if(GetSkAnimatedComponent().valid())
 		return false;
 	if(IsStatic() == true)
 		return true;

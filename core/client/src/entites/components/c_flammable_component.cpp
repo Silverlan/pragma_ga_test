@@ -14,6 +14,8 @@
 #include <pragma/entities/components/base_physics_component.hpp>
 #include <pragma/entities/entity_component_system_t.hpp>
 #include <pragma/audio/alsound_type.h>
+#include <pragma/model/animation/animation.hpp>
+#include <pragma/model/animation/animated_pose.hpp>
 #include <pragma/model/model.h>
 
 using namespace pragma;
@@ -114,9 +116,11 @@ void CFlammableComponent::UpdateFlameParticlePositions()
 		}
 		else
 		{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 			auto animComponent = ent.GetAnimatedComponent();
 			if(animComponent.expired() || animComponent->GetGlobalBonePosition(info.boneId,pos) == false)
 				pos = ent.GetCenter();
+#endif
 		}
 		pTrComponent->SetPosition(pos);
 	}
@@ -201,14 +205,14 @@ util::EventReply CFlammableComponent::Ignite(float duration,BaseEntity *attacker
 		{
 			if(bone->ID == 0)
 				continue;
-			auto *pos = reference.GetBonePosition(bone->ID);
-			if(pos != nullptr)
+			auto *pose = reference.GetTransform(bone->ID);
+			if(pose != nullptr)
 			{
-				auto it = std::find_if(particlePositions.begin(),particlePositions.end(),[pos,distSqr](const ParticleInfo &info) {
-					return (uvec::length_sqr(info.position -(*pos)) < distSqr) ? true : false;
+				auto it = std::find_if(particlePositions.begin(),particlePositions.end(),[pose,distSqr](const ParticleInfo &info) {
+					return (uvec::length_sqr(info.position -pose->GetOrigin()) < distSqr) ? true : false;
 				});
 				if(it == particlePositions.end())
-					particlePositions.push_back({*pos,bone->ID});
+					particlePositions.push_back({pose->GetOrigin(),bone->ID});
 			}
 		}
 	}

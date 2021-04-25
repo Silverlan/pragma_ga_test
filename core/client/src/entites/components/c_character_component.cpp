@@ -24,6 +24,7 @@
 #include "pragma/lua/c_lentity_handles.hpp"
 #include <pragma/entities/components/submergible_component.hpp>
 #include <pragma/entities/entity_component_system_t.hpp>
+#include <pragma/model/animation/animation.hpp>
 #include <pragma/model/model.h>
 
 extern DLLCLIENT ClientState *client;
@@ -41,6 +42,7 @@ CCharacterComponent::CCharacterComponent(BaseEntity &ent)
 void CCharacterComponent::Initialize()
 {
 	BaseCharacterComponent::Initialize();
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 	BindEventUnhandled(CAnimatedComponent::EVENT_ON_BLEND_ANIMATION,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		auto &ent = GetEntity();
 		auto animComponent = ent.GetAnimatedComponent();
@@ -76,6 +78,7 @@ void CCharacterComponent::Initialize()
 			}
 		}
 	});
+#endif
 	BindEventUnhandled(SubmergibleComponent::EVENT_ON_WATER_ENTERED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		CreateWaterSplash();
 	});

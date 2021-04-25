@@ -10,7 +10,7 @@
 
 #include "pragma/clientdefinitions.h"
 #include "pragma/entities/components/c_entity_component.hpp"
-#include <pragma/entities/components/base_animated_component.hpp>
+#include <pragma/entities/components/base_sk_animated_component.hpp>
 
 struct Eyeball;
 namespace prosper {class SwapBuffer; class SwapDescriptorSet;};
@@ -20,8 +20,8 @@ namespace pragma
 	void clear_articulated_buffers();
 	const std::shared_ptr<prosper::IUniformResizableBuffer> &get_instance_bone_buffer();
 
-	class DLLCLIENT CAnimatedComponent final
-		: public BaseAnimatedComponent,
+	class DLLCLIENT CSkAnimatedComponent final
+		: public BaseSkAnimatedComponent,
 		public CBaseNetComponent
 	{
 	public:
@@ -37,7 +37,7 @@ namespace pragma
 		static ComponentEventId EVENT_ON_BONE_BUFFER_INITIALIZED;
 		static void RegisterEvents(pragma::EntityComponentManager &componentManager);
 
-		CAnimatedComponent(BaseEntity &ent) : BaseAnimatedComponent(ent) {}
+		CSkAnimatedComponent(BaseEntity &ent) : BaseSkAnimatedComponent(ent) {}
 
 		virtual void Initialize() override;
 		virtual void OnRemove() override;
@@ -46,7 +46,7 @@ namespace pragma
 		virtual bool ShouldTransmitNetData() const override {return true;}
 		
 		prosper::SwapBuffer *GetSwapBoneBuffer();
-		const prosper::SwapBuffer *GetSwapBoneBuffer() const {return const_cast<CAnimatedComponent*>(this)->GetSwapBoneBuffer();}
+		const prosper::SwapBuffer *GetSwapBoneBuffer() const {return const_cast<CSkAnimatedComponent*>(this)->GetSwapBoneBuffer();}
 		const prosper::IBuffer *GetBoneBuffer() const;
 		const std::vector<Mat4> &GetBoneMatrices() const;
 		std::vector<Mat4> &GetBoneMatrices();
@@ -63,7 +63,9 @@ namespace pragma
 		bool AreSkeletonUpdateCallbacksEnabled() const;
 		void SetBoneBufferDirty();
 	protected:
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 		virtual void ResetAnimation(const std::shared_ptr<Model> &mdl) override;
+#endif
 		virtual void GetBaseTypeIndex(std::type_index &outTypeIndex) const override;
 	private:
 		std::shared_ptr<prosper::SwapBuffer> m_boneBuffer = nullptr;
@@ -92,6 +94,6 @@ namespace pragma
 		std::shared_ptr<prosper::SwapBuffer> buffer;
 	};
 };
-REGISTER_BASIC_BITWISE_OPERATORS(pragma::CAnimatedComponent::StateFlags)
+REGISTER_BASIC_BITWISE_OPERATORS(pragma::CSkAnimatedComponent::StateFlags)
 
 #endif

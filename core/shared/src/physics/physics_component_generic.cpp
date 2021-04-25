@@ -14,6 +14,7 @@
 #include "pragma/physics/collisionmasks.h"
 #include "pragma/physics/physobj.h"
 #include "pragma/model/brush/brushmesh.h"
+#include "pragma/model/animation/animated_pose.hpp"
 #include "pragma/physics/environment.hpp"
 #include "pragma/physics/shape.hpp"
 #include "pragma/physics/collision_object.hpp"
@@ -22,10 +23,11 @@
 #include "pragma/physics/constraint.hpp"
 #include "pragma/model/modelmesh.h"
 #include "pragma/entities/components/base_transform_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/velocity_component.hpp"
 #include "pragma/entities/entity_component_system_t.hpp"
 #include "pragma/model/model.h"
+#include "pragma/model/animation/animation.hpp"
 #include "pragma/entities/components/basegravity.h"
 #include "pragma/game/game_coordinate_system.hpp"
 
@@ -195,15 +197,18 @@ util::WeakHandle<PhysObj> BasePhysicsComponent::InitializePhysics(const physics:
 					cmpShape->AddShape(*subShape,it->localPose);
 				}
 				auto body = CreateRigidBody(*cmpShape,umath::is_flag_set(flags,PhysFlags::Dynamic));
-				if(bPhys == false)
+				if(body.IsValid())
 				{
-					bPhys = true;
-					if(m_physObject != nullptr)
-						DestroyPhysicsObject();
-					m_physObject = PhysObj::Create<RigidPhysObj,pragma::physics::IRigidBody&>(*this,*body);
+					if(bPhys == false)
+					{
+						bPhys = true;
+						if(m_physObject != nullptr)
+							DestroyPhysicsObject();
+						m_physObject = PhysObj::Create<RigidPhysObj,pragma::physics::IRigidBody&>(*this,*body);
+					}
+					else
+						m_physObject->AddCollisionObject(*body);
 				}
-				else
-				m_physObject->AddCollisionObject(*body);
 				continue;
 			}
 			shape = physEnv->CreateCompoundShape();
@@ -266,8 +271,9 @@ util::WeakHandle<PhysObj> BasePhysicsComponent::InitializePhysics(const physics:
 
 				auto &pose = mdl->GetReference();
 				// Constraint position/rotation
-				auto posConstraint = *pose.GetBonePosition(boneId);
-				auto rotConstraint = *pose.GetBoneOrientation(boneId);
+				auto *boneTransform = pose.GetTransform(boneId);
+				auto posConstraint = boneTransform ? boneTransform->GetOrigin() : Vector3{};
+				auto rotConstraint = boneTransform ? boneTransform->GetRotation() : uquat::identity();
 
 				auto posTgt = posConstraint +bodyTgt->GetOrigin();
 
@@ -411,7 +417,7 @@ util::WeakHandle<PhysObj> BasePhysicsComponent::InitializePhysics(const physics:
 		return {};
 	m_physObject->Spawn();
 	auto &collisionObjs = m_physObject->GetCollisionObjects();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	pragma::physics::ICollisionObject *root = nullptr;
 	auto pTrComponent = GetEntity().GetTransformComponent();
 	auto posRoot = pTrComponent != nullptr ? pTrComponent->GetPosition() : Vector3{};
@@ -451,17 +457,16 @@ util::WeakHandle<PhysObj> BasePhysicsComponent::InitializePhysics(const physics:
 			for(auto &colObj : collisionObjs)
 			{
 				auto boneId = colObj->GetBoneID();
-				auto *posRef = reference.GetBonePosition(boneId);
-				if(posRef == nullptr)
+				auto *poseRef = reference.GetTransform(boneId);
+				if(poseRef == nullptr)
 					continue;
-				auto *rotRef = reference.GetBoneOrientation(boneId);
 
 				Vector3 pos = {};
 				Quat rot = uquat::identity();
 				if(animComponent.valid())
 					animComponent->GetLocalBonePosition(boneId,pos,rot);
-				rot = rot *uquat::get_inverse(*rotRef);
-				auto offset = *posRef +colObj->GetOrigin();
+				rot = rot *uquat::get_inverse(poseRef->GetRotation());
+				auto offset = poseRef->GetOrigin() +colObj->GetOrigin();
 				uvec::rotate(&offset,rot);
 				pos = pos +(-offset);
 				if(pTrComponent != nullptr)
@@ -482,6 +487,7 @@ util::WeakHandle<PhysObj> BasePhysicsComponent::InitializePhysics(const physics:
 			auto refAnim = mdl->GetAnimation(0);
 			if(refAnim != nullptr)
 			{
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 				auto frame = refAnim->GetFrame(0); // Reference frame with local bone transformations
 				if(frame != nullptr)
 				{
@@ -498,6 +504,7 @@ util::WeakHandle<PhysObj> BasePhysicsComponent::InitializePhysics(const physics:
 						}
 					}
 				}
+#endif
 			}
 		}
 		//

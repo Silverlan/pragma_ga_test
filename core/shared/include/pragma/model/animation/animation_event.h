@@ -13,7 +13,6 @@
 
 struct DLLNETWORK AnimationEvent
 {
-public:
 	enum class DLLNETWORK Type : uint32_t
 	{
 		EmitSound,
@@ -22,9 +21,9 @@ public:
 		Count,
 		Invalid = std::numeric_limits<std::underlying_type_t<Type>>::max()
 	};
-public:
 	Type eventID;
 	std::vector<std::string> arguments;
+	float time = 0.f;
 };
 REGISTER_BASIC_ARITHMETIC_OPERATORS(AnimationEvent::Type)
 

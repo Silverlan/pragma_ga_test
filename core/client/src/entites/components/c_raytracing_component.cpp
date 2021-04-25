@@ -207,7 +207,7 @@ void CRaytracingComponent::UpdateBuffers(prosper::IPrimaryCommandBuffer &cmd)
 	}
 	if(umath::is_flag_set(m_stateFlags,StateFlags::BoneBufferDirty))
 	{
-		auto whAnimatedComponent = GetEntity().GetComponent<CAnimatedComponent>();
+		auto whAnimatedComponent = GetEntity().GetComponent<CSkAnimatedComponent>();
 		umath::set_flag(m_stateFlags,StateFlags::BoneBufferDirty,false);
 		auto wpBoneBuffer = whAnimatedComponent->GetBoneBuffer();//whAnimatedComponent.valid() ? whAnimatedComponent->GetBoneBuffer() : std::weak_ptr<prosper::IBuffer>{};
 		auto index = wpBoneBuffer ? static_cast<prosper::IBuffer::SmallOffset>(wpBoneBuffer->GetBaseIndex()) : prosper::IBuffer::INVALID_SMALL_OFFSET;

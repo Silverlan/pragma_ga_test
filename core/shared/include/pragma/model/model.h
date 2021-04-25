@@ -11,16 +11,17 @@
 #include <vector>
 
 #include "pragma/model/side.h"
-#include "pragma/model/animation/animation.h"
 #include <mathutil/uvec.h>
 #include <pragma/math/intersection.h>
 #include <pragma/console/conout.h>
 #include "material.h"
+#include "pragma/types.hpp"
 #include "pragma/physics/hitboxes.h"
 #include "pragma/math/surfacematerial.h"
 #include "pragma/model/modelupdateflags.hpp"
 #include "pragma/model/model_flexes.hpp"
 #include "pragma/physics/ik/ik_controller.hpp"
+#include "pragma/physics/jointinfo.h"
 #include "pragma/phonememap.hpp"
 #include <sharedutils/def_handle.h>
 #include <memory>
@@ -189,6 +190,7 @@ using BoneId = uint16_t;
 enum class JointType : uint8_t;
 namespace umath {class ScaledTransform;};
 namespace udm {using Version = uint32_t;};
+class Skeleton;
 class DLLNETWORK Model
 	: public std::enable_shared_from_this<Model>
 {
@@ -272,7 +274,6 @@ public:
 	bool Save(Game &game,udm::AssetData &outData,std::string &outErr);
 	bool Save(Game &game,const std::string &fileName,std::string &outErr);
 	bool Save(Game &game,std::string &outErr);
-	bool SaveLegacy(Game *game,const std::string &name,const std::string &rootPath="") const;
 	std::shared_ptr<Model> Copy(Game *game,CopyFlags copyFlags=CopyFlags::ShallowCopy) const;
 	bool FindMaterial(const std::string &texture,std::string &matPath) const;
 	MetaInfo &GetMetaInfo() const;
@@ -318,19 +319,19 @@ public:
 	static void ClearCache();
 	const std::string &GetName() const;
 	void SetName(const std::string &name) {m_name = name;}
-	uint32_t AddAnimation(const std::string &name,const std::shared_ptr<Animation> &anim);
+	pragma::animation::AnimationId AddAnimation(const std::string &name,const std::shared_ptr<pragma::animation::Animation> &anim);
 	int LookupAnimation(const std::string &name) const;
 	int SelectWeightedAnimation(Activity activity,int32_t animIgnore=-1);
 	int SelectFirstAnimation(Activity activity) const;
-	unsigned char GetAnimationActivityWeight(uint32_t animation) const;
-	Activity GetAnimationActivity(uint32_t animation) const;
-	float GetAnimationDuration(uint32_t animation);
-	std::shared_ptr<Animation> GetAnimation(uint32_t ID);
-	void GetAnimations(Activity activity,std::vector<uint32_t> &animations);
-	void GetAnimations(std::unordered_map<std::string,uint32_t> **anims);
-	const std::vector<std::shared_ptr<Animation>> &GetAnimations() const;
-	std::vector<std::shared_ptr<Animation>> &GetAnimations();
-	bool GetAnimationName(uint32_t animId,std::string &name) const;
+	unsigned char GetAnimationActivityWeight(pragma::animation::AnimationId animation) const;
+	Activity GetAnimationActivity(pragma::animation::AnimationId animation) const;
+	float GetAnimationDuration(pragma::animation::AnimationId animation);
+	std::shared_ptr<pragma::animation::Animation> GetAnimation(pragma::animation::AnimationId ID) const;
+	void GetAnimations(Activity activity,std::vector<pragma::animation::AnimationId> &animations);
+	void GetAnimations(std::unordered_map<std::string,pragma::animation::AnimationId> **anims);
+	const std::vector<std::shared_ptr<pragma::animation::Animation>> &GetAnimations() const;
+	std::vector<std::shared_ptr<pragma::animation::Animation>> &GetAnimations();
+	bool GetAnimationName(pragma::animation::AnimationId animId,std::string &name) const;
 	std::string GetAnimationName(uint32_t animId) const;
 	uint32_t GetAnimationCount() const;
 	bool HasVertexWeights() const;
@@ -402,7 +403,7 @@ public:
 	const Skeleton &GetSkeleton() const;
 	Skeleton &GetSkeleton();
 	uint32_t GetBoneCount() const;
-	bool GetLocalBonePosition(uint32_t animId,uint32_t frameId,uint32_t boneId,Vector3 &rPos,Quat &rRot,Vector3 *scale=nullptr);
+	bool GetLocalBonePosition(uint32_t animId,float t,uint32_t boneId,Vector3 &rPos,Quat &rRot,Vector3 *scale=nullptr);
 	bool IsRootBone(uint32_t boneId) const;
 	bool IntersectAABB(Vector3 &min,Vector3 &max);
 	void CalculateRenderBounds();
@@ -412,9 +413,6 @@ public:
 	void GetRenderBounds(Vector3 &min,Vector3 &max);
 	void SetCollisionBounds(const Vector3 &min,const Vector3 &max);
 	void SetRenderBounds(const Vector3 &min,const Vector3 &max);
-	Mat4 *GetBindPoseBoneMatrix(uint32_t boneID);
-	void SetBindPoseBoneMatrix(uint32_t boneID,Mat4 mat);
-	void GenerateBindPoseMatrices();
 	float GetMass() const;
 	void SetMass(float mass);
 	void AddBlendController(const std::string &name,int32_t min,int32_t max,bool loop);
@@ -499,9 +497,10 @@ public:
 	void RemoveTexturePath(uint32_t idx);
 	void SetTexturePaths(const std::vector<std::string> &paths);
 	std::optional<uint32_t> GetMaterialIndex(const ModelSubMesh &mesh,uint32_t skinId=0) const;
-	void SetReference(std::shared_ptr<Frame> frame);
-	const Frame &GetReference() const;
-	Frame &GetReference();
+	void SetReference(const std::shared_ptr<pragma::animation::AnimatedPose> &pose);
+	const pragma::animation::AnimatedPose &GetReference() const {return const_cast<Model*>(this)->GetReference();}
+	pragma::animation::AnimatedPose &GetReference();
+	const std::shared_ptr<pragma::animation::AnimatedPose> &GetReferencePtr() const {return m_referencePose;}
 	void Rotate(const Quat &rot);
 	void Translate(const Vector3 &t);
 	void Scale(const Vector3 &scale);
@@ -585,10 +584,10 @@ private:
 	std::vector<Eyeball> m_eyeballs;
 	//std::vector<std::vector<VertexWeight>*> m_weights;
 	static std::unordered_map<std::string,std::shared_ptr<Model>> m_models;
-	std::shared_ptr<Frame> m_reference = nullptr;
+	std::shared_ptr<pragma::animation::AnimatedPose> m_referencePose = nullptr;
 	std::string m_name;
 	bool m_bAllMaterialsLoaded = false;
-	std::vector<std::shared_ptr<Animation>> m_animations;
+	std::vector<std::shared_ptr<pragma::animation::Animation>> m_animations;
 	std::vector<std::shared_ptr<VertexAnimation>> m_vertexAnimations;
 	std::unordered_map<std::string,unsigned int> m_animationIDs;
 	std::shared_ptr<Skeleton> m_skeleton = nullptr;
@@ -601,8 +600,6 @@ private:
 	std::vector<std::shared_ptr<FlexAnimation>> m_flexAnimations;
 	std::vector<std::string> m_flexAnimationNames;
 
-	// Bind pose matrices are currently unused; Bind pose is extracted from reference pose instead!
-	std::vector<Mat4> m_bindPose;
 	Vector3 m_eyeOffset = {};
 	Vector3 m_collisionMin = {};
 	Vector3 m_collisionMax = {};

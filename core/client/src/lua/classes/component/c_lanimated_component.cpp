@@ -14,9 +14,9 @@
 
 void Lua::Animated::register_class(lua_State *l,luabind::module_ &entsMod)
 {
-	auto defCAnimated = luabind::class_<CAnimatedHandle,BaseEntityComponentHandle>("AnimatedComponent");
-	Lua::register_base_animated_component_methods<luabind::class_<CAnimatedHandle,BaseEntityComponentHandle>,CAnimatedHandle>(l,defCAnimated);
-	defCAnimated.def("GetBoneBuffer",static_cast<void(*)(lua_State*,CAnimatedHandle&)>([](lua_State *l,CAnimatedHandle &hAnim) {
+	auto defCAnimated = luabind::class_<CSkAnimatedHandle,BaseEntityComponentHandle>("SkAnimatedComponent");
+	Lua::register_base_animated_component_methods<luabind::class_<CSkAnimatedHandle,BaseEntityComponentHandle>,CSkAnimatedHandle>(l,defCAnimated);
+	defCAnimated.def("GetBoneBuffer",static_cast<void(*)(lua_State*,CSkAnimatedHandle&)>([](lua_State *l,CSkAnimatedHandle &hAnim) {
 		pragma::Lua::check_component(l,hAnim);
 		auto *pAnimComponent = hAnim.get();
 		if(pAnimComponent == nullptr)
@@ -26,7 +26,7 @@ void Lua::Animated::register_class(lua_State *l,luabind::module_ &entsMod)
 			return;
 		Lua::Push(l,buf->shared_from_this());
 		}));
-	defCAnimated.def("GetBoneRenderMatrices",static_cast<void(*)(lua_State*,CAnimatedHandle&)>([](lua_State *l,CAnimatedHandle &hAnim) {
+	defCAnimated.def("GetBoneRenderMatrices",static_cast<void(*)(lua_State*,CSkAnimatedHandle&)>([](lua_State *l,CSkAnimatedHandle &hAnim) {
 		pragma::Lua::check_component(l,hAnim);
 		auto *pAnimComponent = hAnim.get();
 		if(pAnimComponent == nullptr)
@@ -41,7 +41,7 @@ void Lua::Animated::register_class(lua_State *l,luabind::module_ &entsMod)
 			Lua::SetTableValue(l,t);
 		}
 		}));
-	defCAnimated.def("GetBoneRenderMatrix",static_cast<void(*)(lua_State*,CAnimatedHandle&,uint32_t)>([](lua_State *l,CAnimatedHandle &hAnim,uint32_t boneIndex) {
+	defCAnimated.def("GetBoneRenderMatrix",static_cast<void(*)(lua_State*,CSkAnimatedHandle&,uint32_t)>([](lua_State *l,CSkAnimatedHandle &hAnim,uint32_t boneIndex) {
 		pragma::Lua::check_component(l,hAnim);
 		auto *pAnimComponent = hAnim.get();
 		if(pAnimComponent == nullptr)
@@ -52,7 +52,7 @@ void Lua::Animated::register_class(lua_State *l,luabind::module_ &entsMod)
 		auto &m = mats.at(boneIndex);
 		Lua::Push<Mat4>(l,m);
 		}));
-	defCAnimated.def("SetBoneRenderMatrix",static_cast<void(*)(lua_State*,CAnimatedHandle&,uint32_t,const Mat4&)>([](lua_State *l,CAnimatedHandle &hAnim,uint32_t boneIndex,const Mat4 &m) {
+	defCAnimated.def("SetBoneRenderMatrix",static_cast<void(*)(lua_State*,CSkAnimatedHandle&,uint32_t,const Mat4&)>([](lua_State *l,CSkAnimatedHandle &hAnim,uint32_t boneIndex,const Mat4 &m) {
 		pragma::Lua::check_component(l,hAnim);
 		auto *pAnimComponent = hAnim.get();
 		if(pAnimComponent == nullptr)
@@ -62,7 +62,7 @@ void Lua::Animated::register_class(lua_State *l,luabind::module_ &entsMod)
 			return;
 		mats.at(boneIndex) = m;
 	}));
-	defCAnimated.def("GetLocalVertexPosition",static_cast<void(*)(lua_State*,CAnimatedHandle&,std::shared_ptr<::ModelSubMesh>&,uint32_t)>([](lua_State *l,CAnimatedHandle &hAnim,std::shared_ptr<::ModelSubMesh> &subMesh,uint32_t vertexId) {
+	defCAnimated.def("GetLocalVertexPosition",static_cast<void(*)(lua_State*,CSkAnimatedHandle&,std::shared_ptr<::ModelSubMesh>&,uint32_t)>([](lua_State *l,CSkAnimatedHandle &hAnim,std::shared_ptr<::ModelSubMesh> &subMesh,uint32_t vertexId) {
 		pragma::Lua::check_component(l,hAnim);
 		Vector3 pos,n;
 		auto b = hAnim->GetLocalVertexPosition(static_cast<CModelSubMesh&>(*subMesh),vertexId,pos,n);
@@ -70,16 +70,16 @@ void Lua::Animated::register_class(lua_State *l,luabind::module_ &entsMod)
 			return;
 		Lua::Push<Vector3>(l,pos);
 		}));
-	defCAnimated.def("AreSkeletonUpdateCallbacksEnabled",static_cast<void(*)(lua_State*,CAnimatedHandle&)>([](lua_State *l,CAnimatedHandle &hAnim) {
+	defCAnimated.def("AreSkeletonUpdateCallbacksEnabled",static_cast<void(*)(lua_State*,CSkAnimatedHandle&)>([](lua_State *l,CSkAnimatedHandle &hAnim) {
 		pragma::Lua::check_component(l,hAnim);
 		Lua::PushBool(l,hAnim->AreSkeletonUpdateCallbacksEnabled());
 	}));
-	defCAnimated.def("SetSkeletonUpdateCallbacksEnabled",static_cast<void(*)(lua_State*,CAnimatedHandle&,bool)>([](lua_State *l,CAnimatedHandle &hAnim,bool enabled) {
+	defCAnimated.def("SetSkeletonUpdateCallbacksEnabled",static_cast<void(*)(lua_State*,CSkAnimatedHandle&,bool)>([](lua_State *l,CSkAnimatedHandle &hAnim,bool enabled) {
 		pragma::Lua::check_component(l,hAnim);
 		hAnim->SetSkeletonUpdateCallbacksEnabled(enabled);
 	}));
-	defCAnimated.add_static_constant("EVENT_ON_SKELETON_UPDATED",pragma::CAnimatedComponent::EVENT_ON_SKELETON_UPDATED);
-	defCAnimated.add_static_constant("EVENT_ON_BONE_MATRICES_UPDATED",pragma::CAnimatedComponent::EVENT_ON_BONE_MATRICES_UPDATED);
-	defCAnimated.add_static_constant("EVENT_ON_BONE_BUFFER_INITIALIZED",pragma::CAnimatedComponent::EVENT_ON_BONE_BUFFER_INITIALIZED);
+	defCAnimated.add_static_constant("EVENT_ON_SKELETON_UPDATED",pragma::CSkAnimatedComponent::EVENT_ON_SKELETON_UPDATED);
+	defCAnimated.add_static_constant("EVENT_ON_BONE_MATRICES_UPDATED",pragma::CSkAnimatedComponent::EVENT_ON_BONE_MATRICES_UPDATED);
+	defCAnimated.add_static_constant("EVENT_ON_BONE_BUFFER_INITIALIZED",pragma::CSkAnimatedComponent::EVENT_ON_BONE_BUFFER_INITIALIZED);
 	entsMod[defCAnimated];
 }

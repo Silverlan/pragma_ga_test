@@ -7,6 +7,7 @@
 
 #include "stdafx_shared.h"
 #include "pragma/file_formats/wmd.h"
+#include "pragma/model/animation/skeleton.h"
 
 FWMD::FWMD(Game *game)
 	: m_bStatic(false),m_gameState(game)

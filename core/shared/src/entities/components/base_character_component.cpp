@@ -19,11 +19,12 @@
 #include "pragma/audio/alsound_type.h"
 #include "pragma/math/util_engine_math.hpp"
 #include "pragma/util/util_handled.hpp"
+#include "pragma/entities/components/animated_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_sound_emitter_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/base_time_scale_component.hpp"
 #include "pragma/entities/components/submergible_component.hpp"
 #include "pragma/entities/components/velocity_component.hpp"
@@ -123,7 +124,7 @@ void BaseCharacterComponent::Initialize()
 	m_netEvSetActiveWeapon = SetupNetEvent("set_active_weapon");
 	m_netEvSetAmmoCount = SetupNetEvent("set_ammo_count");
 
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+	BindEventUnhandled(AnimatedComponent::EVENT_HANDLE_ANIMATION_EVENT,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		return HandleAnimationEvent(static_cast<CEHandleAnimationEvent&>(evData.get()).animationEvent) ? util::EventReply::Handled : util::EventReply::Unhandled;
 	});
 	BindEventUnhandled(BasePhysicsComponent::EVENT_ON_PRE_PHYSICS_SIMULATE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
@@ -287,7 +288,7 @@ void BaseCharacterComponent::SetViewOrientation(const Quat &orientation)
 	auto &rotRef = GetOrientationAxesRotation();
 	auto rot = rotRef *orientation;
 	EulerAngles angView(rot);
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	auto &hMdl = ent.GetModel();
 	if(animComponent.valid() && hMdl != nullptr)
 	{

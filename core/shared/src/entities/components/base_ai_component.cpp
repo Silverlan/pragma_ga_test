@@ -11,22 +11,27 @@
 #include "pragma/physics/collisionmasks.h"
 #include "pragma/physics/physicstypes.h"
 #include "pragma/model/animation/activities.h"
+#include "pragma/model/animation/animation.hpp"
 #include "Recast.h"
 #include "DetourNavMesh.h"
 #include "DetourNavMeshBuilder.h"
 #include "DetourNavMeshQuery.h"
 #include "pragma/model/animation/fanim.h"
+#include "pragma/model/animation/animation_player.hpp"
+#include "pragma/model/animation/animation_channel.hpp"
+#include "pragma/model/animation/skeletal_animation.hpp"
 #include "pragma/physics/raytraces.h"
 #include "pragma/physics/raycast_filter.hpp"
 #include "pragma/entities/baseworld.h"
 #include "pragma/math/util_hermite.h"
 #include "pragma/util/util_approach_rotation.hpp"
+#include "pragma/entities/components/animated_component.hpp"
 #include "pragma/entities/components/base_character_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
 #include "pragma/entities/components/base_observable_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/model/model.h"
 
 using namespace pragma;
@@ -41,7 +46,7 @@ ai::navigation::PathQuery::PathQuery(const Vector3 &_start,const Vector3 &_end)
 //////////////////
 
 BaseAIComponent::BaseAIComponent(BaseEntity &ent)
-	: BaseEntityComponent(ent),m_seqIdle(-1),
+	: BaseEntityComponent(ent),
 	m_navInfo(),m_obstruction()
 {
 	m_obstruction.nextObstructionCheck = 0.0;
@@ -207,8 +212,8 @@ void BaseAIComponent::Initialize()
 	BindEventUnhandled(BaseModelComponent::EVENT_ON_MODEL_CHANGED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		OnModelChanged(static_cast<pragma::CEOnModelChanged&>(evData.get()).model);
 	});
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_ON_ANIMATION_START,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
-		auto animComponent = GetEntity().GetAnimatedComponent();
+	BindEventUnhandled(AnimatedComponent::EVENT_ON_ANIMATION_START,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+		auto animComponent = GetEntity().GetSkAnimatedComponent();
 		if(animComponent.expired())
 			return;
 		auto *anim = animComponent->GetAnimationObject();
@@ -221,8 +226,9 @@ void BaseAIComponent::Initialize()
 		m_animMoveInfo.blend = !anim->HasFlag(FAnim::NoMoveBlend);
 		m_animMoveInfo.moving = (anim->HasFlag(FAnim::MoveX) || anim->HasFlag(FAnim::MoveZ)) ? true : false;
 	});
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_ON_BLEND_ANIMATION,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
-		auto animComponent = GetEntity().GetAnimatedComponent();
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	BindEventUnhandled(BaseSkAnimatedComponent::EVENT_ON_BLEND_ANIMATION,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
+		auto animComponent = GetEntity().GetSkAnimatedComponent();
 		if(animComponent.expired())
 			return;
 		auto &evDataBlend = static_cast<CEOnBlendAnimation&>(evData.get());
@@ -230,6 +236,7 @@ void BaseAIComponent::Initialize()
 		if(&animInfo == &animComponent->GetBaseAnimationInfo()) // Only apply for base animation, not for gestures
 			BaseAIComponent::BlendAnimationMovement(evDataBlend.bonePoses,evDataBlend.boneScales);
 	});
+#endif
 	BindEventUnhandled(BasePhysicsComponent::EVENT_ON_PHYSICS_INITIALIZED,[this](std::reference_wrapper<pragma::ComponentEvent> evData) {
 		OnPhysicsInitialized();
 	});
@@ -260,7 +267,7 @@ void BaseAIComponent::OnEntitySpawn()
 
 void BaseAIComponent::OnModelChanged(const std::shared_ptr<Model> &model)
 {
-	m_seqIdle = -1;
+	m_idleAnimPose.Clear();
 	auto *pObservableComponent = static_cast<pragma::BaseObservableComponent*>(GetEntity().FindComponent("observable").get());
 	if(pObservableComponent != nullptr)
 		pObservableComponent->SetCameraEnabled(BaseObservableComponent::CameraType::ThirdPerson,false);
@@ -284,17 +291,22 @@ void BaseAIComponent::OnModelChanged(const std::shared_ptr<Model> &model)
 	}
 
 	// Find idle animation
-	std::vector<unsigned int> animations;
+	std::vector<animation::AnimationId> animations;
 	model->GetAnimations(Activity::Idle,animations);
 	if(animations.empty())
 		return;
-	m_seqIdle = animations.front();
+	auto idleAnim = animations.front();
 	auto it = std::find_if(animations.begin(),animations.end(),[&model](uint32_t animId) {
 		auto anim = model->GetAnimation(animId);
 		return (anim != nullptr && !anim->HasFlag(FAnim::NoRepeat)) ? true : false; // Prefer an idle animation that can be repeated (More likely to be a generic idle animation)
 	});
 	if(it != animations.end())
-		m_seqIdle = *it;
+		idleAnim = *it;
+	auto idleAnimPlayer = animation::AnimationPlayer::Create(*model);
+	idleAnimPlayer->PlayAnimation(idleAnim);
+	auto &slice = idleAnimPlayer->GetCurrentSlice();
+	auto boneChannelMap = animation::skeletal::get_bone_channel_map(*model->GetAnimation(idleAnim),model->GetSkeleton());
+	animation::skeletal::animation_slice_to_animated_pose(boneChannelMap,slice,m_idleAnimPose);
 }
 
 void BaseAIComponent::OnPhysicsInitialized()

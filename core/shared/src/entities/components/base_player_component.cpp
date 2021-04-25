@@ -36,14 +36,16 @@
 #include "pragma/entities/components/base_observable_component.hpp"
 #include "pragma/entities/components/base_health_component.hpp"
 #include "pragma/entities/components/base_name_component.hpp"
+#include "pragma/entities/components/animated_component.hpp"
 #include "pragma/entities/baseplayer.hpp"
 #include "pragma/entities/components/base_physics_component.hpp"
 #include "pragma/entities/components/base_transform_component.hpp"
 #include "pragma/entities/components/base_model_component.hpp"
-#include "pragma/entities/components/base_animated_component.hpp"
+#include "pragma/entities/components/base_sk_animated_component.hpp"
 #include "pragma/entities/components/velocity_component.hpp"
 #include "pragma/entities/entity_component_system_t.hpp"
 #include "pragma/model/model.h"
+#include "pragma/model/animation/animation.hpp"
 
 using namespace pragma;
 
@@ -176,7 +178,7 @@ void BasePlayerComponent::OnTick(double tDelta)
 	}
 
 	// Update animation
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	if(animComponent.valid() && (phys == nullptr || phys->IsController())) // Only run this if not in ragdoll mode
 	{
 		auto pTrComponent = ent.GetTransformComponent();
@@ -211,8 +213,10 @@ void BasePlayerComponent::OnTick(double tDelta)
 			{
 				m_bForceAnimationUpdate = false;
 				PlaySharedActivity(Activity::Idle);
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
 				if(bMoving == true)
 					animComponent->SetLastAnimationBlendScale(1.f -(charComponent.valid() ? charComponent->GetMovementBlendScale() : 0.f));
+#endif
 			}
 		}
 	}
@@ -221,7 +225,7 @@ void BasePlayerComponent::OnTick(double tDelta)
 bool BasePlayerComponent::IsMoving() const
 {
 	auto &ent = GetEntity();
-	auto animComponent = ent.GetAnimatedComponent();
+	auto animComponent = ent.GetSkAnimatedComponent();
 	return (animComponent.valid() && animComponent->GetActivity() == m_movementActivity && m_movementActivity != Activity::Invalid) ? true : false;
 }
 bool BasePlayerComponent::IsWalking() const {return GetActionInput(Action::Walk);}
@@ -325,7 +329,7 @@ void BasePlayerComponent::Initialize()
 		movementDirData.direction = CalcMovementDirection(movementDirData.forward,movementDirData.right);
 		return util::EventReply::Handled;
 	});
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	BindEventUnhandled(AnimatedComponent::EVENT_ON_ANIMATION_COMPLETE,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		auto &hMdl = GetEntity().GetModel();
 		if(hMdl == nullptr)
 			return util::EventReply::Unhandled;
@@ -336,15 +340,17 @@ void BasePlayerComponent::Initialize()
 			PlaySharedActivity(Activity::Idle); // A non-looping animation has completed; Switch back to idle
 		return util::EventReply::Unhandled;
 	});
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_ON_ANIMATION_RESET,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+#if ENABLE_LEGACY_ANIMATION_SYSTEM
+	BindEventUnhandled(AnimatedComponent::EVENT_ON_ANIMATION_RESET,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		PlaySharedActivity(Activity::Idle); // A non-looping animation has completed; Switch back to idle
 		return util::EventReply::Unhandled;
 	});
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_ON_ANIMATION_START,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+#endif
+	BindEventUnhandled(AnimatedComponent::EVENT_ON_ANIMATION_START,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		m_movementActivity = Activity::Invalid;
 		return util::EventReply::Unhandled;
 	});
-	BindEventUnhandled(BaseAnimatedComponent::EVENT_TRANSLATE_ACTIVITY,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
+	BindEventUnhandled(BaseSkAnimatedComponent::EVENT_TRANSLATE_ACTIVITY,[this](std::reference_wrapper<pragma::ComponentEvent> evData) -> util::EventReply {
 		if((IsCrouching() == true && m_crouchTransition != CrouchTransition::Uncrouching) || m_crouchTransition == CrouchTransition::Crouching)
 		{
 			auto &activity = static_cast<CETranslateActivity&>(evData.get()).activity;
@@ -736,7 +742,7 @@ void BasePlayerComponent::SetActionInput(Action action,bool b,float magnitude)
 
 bool BasePlayerComponent::PlaySharedActivity(Activity activity)
 {
-	auto animComponent = GetEntity().GetAnimatedComponent();
+	auto animComponent = GetEntity().GetSkAnimatedComponent();
 	return animComponent.valid() ? animComponent->PlayActivity(activity) : false;
 }
 
