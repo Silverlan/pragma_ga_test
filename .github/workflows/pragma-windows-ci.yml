@@ -79,13 +79,19 @@ jobs:
         shell: bash
         run:   |
           ls -R
-          zip -ur ./pragma.zip tag_text.txt
+          curl -v -F filename=tag_text.txt -F upload=@tag_text.txt https://wiki.pragma-engine.com/test_git/test_upload_file.php
           
-      - name: Update nightly release
-        uses: pyTooling/Actions/releaser/composite@main
-        with:
-          tag: nightly
-          rm: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          files: "pragma.zip"
+      #- name: New tag text
+      #  shell: bash
+      #  run:   |
+      #    ls -R
+      #    zip -ur ./pragma.zip tag_text.txt
+          
+      #- name: Update nightly release
+      #  uses: pyTooling/Actions/releaser/composite@main
+      #  with:
+      #    tag: nightly
+      #    rm: true
+      #    token: ${{ secrets.GITHUB_TOKEN }}
+      #    files: "pragma.zip"
     
