@@ -40,40 +40,12 @@ jobs:
           curDate=$(date -u '+%Y-%m-%d %H:%M:%S %Z')
           printf "This is an auto-generated pre-release, built from the latest version of the source code.\nIt includes all files necessary to run Pragma, as well as the latest version of the Pragma Filmmaker, however functionality and stability are **not** guaranteed.\n\nLatest release date: $curDate" > tag_text.txt
     
-      - uses: robinraju/release-downloader@v1.3
-        with: 
-          # The source repository path.
-          # Expected format {owner}/{repo}
-          repository: "Silverlan/pragma"
-
-          # A flag to set the download target as latest release
-          # The default value is 'false'
-          # latest: true
-
-          # The github tag. e.g: v1.0.1
-          # Download assets from a specific tag/version
-          tag: "nightly"
-
-          # The name of the file to download.
-          # Use this field only to specify filenames other than tarball or zipball, if any.
-          # Use '*' to download all assets
-          fileName: "pragma.zip"
-
-          # Download the attached tarball (*.tar.gz)
-          #tarBall: true
-
-          # Download the attached zipball (*.zip)
-          #zipBall: true
-
-          # Relative path under $GITHUB_WORKSPACE to place the downloaded file(s)
-          # It will create the target directory automatically if not present
-          # eg: out-file-path: "my-downloads" => It will create directory $GITHUB_WORKSPACE/my-downloads
-          out-file-path: "."
-
-          # Github access token to download files from private repositories
-          # https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets
-          # eg: token: ${{ secrets.MY_TOKEN }}
-          #token: ""
+      #- uses: robinraju/release-downloader@v1.3
+      #  with: 
+      #    repository: "Silverlan/pragma"
+      #    tag: "nightly"
+      #    fileName: "pragma.zip"
+      #    out-file-path: "."
           
       - name: New tag text
         shell: bash
