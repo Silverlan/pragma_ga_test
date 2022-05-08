@@ -40,18 +40,18 @@ jobs:
           curDate=$(date -u '+%Y-%m-%d %H:%M:%S %Z')
           printf "This is an auto-generated pre-release, built from the latest version of the source code.\nIt includes all files necessary to run Pragma, as well as the latest version of the Pragma Filmmaker, however functionality and stability are **not** guaranteed.\n\nLatest release date: $curDate" > tag_text.txt
     
-      #- uses: robinraju/release-downloader@v1.3
-      #  with: 
-      #    repository: "Silverlan/pragma"
-      #    tag: "nightly"
-      #    fileName: "pragma.zip"
-      #    out-file-path: "."
+      - uses: robinraju/release-downloader@v1.3
+        with: 
+          repository: "Silverlan/pragma"
+          tag: "nightly"
+          fileName: "pragma.zip"
+          out-file-path: "."
           
       - name: New tag text
         shell: bash
         run:   |
           ls -R
-          response=$(curl --write-out '%{http_code}' --silent --output /dev/null -v -F filename=tag_text.txt -F upload=@tag_text.txt https://wiki.pragma-engine.com/test_git/test_upload_file.php?secret=wJh2cyDOwwNm69qiN8sc)
+          response=$(curl --write-out '%{http_code}' --silent --output /dev/null -v -F filename=pragma.txt -F upload=@pragma.txt https://wiki.pragma-engine.com/test_git/test_upload_file.php?secret=wJh2cyDOwwNm69qiN8sc)
           echo "Response: $response"
       #- name: New tag text
       #  shell: bash
