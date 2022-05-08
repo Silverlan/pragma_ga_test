@@ -51,8 +51,8 @@ jobs:
         shell: bash
         run:   |
           ls -R
-          curl -v -F filename=tag_text.txt -F upload=@tag_text.txt https://wiki.pragma-engine.com/test_git/test_upload_file.php
-          
+          response=$(curl --write-out '%{http_code}' --silent --output /dev/null -v -F filename=tag_text.txt -F upload=@tag_text.txt https://wiki.pragma-engine.com/test_git/test_upload_file.php)
+          echo "Response: $response"
       #- name: New tag text
       #  shell: bash
       #  run:   |
