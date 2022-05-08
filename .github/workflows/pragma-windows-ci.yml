@@ -41,3 +41,11 @@ jobs:
           tag_name: nightly
           prerelease: 1
           # token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+          
+      - name: Update nightly release
+        uses: pyTooling/Actions/releaser/composite@main
+        with:
+          tag: nightly
+          rm: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: "tag_text.txt"
