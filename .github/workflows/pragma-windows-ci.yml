@@ -9,6 +9,7 @@ concurrency:
   group: environment-${{ github.ref }}
   cancel-in-progress: true
 
+
 jobs:
   build:
     name: Build - ${{ matrix.config.os }}
