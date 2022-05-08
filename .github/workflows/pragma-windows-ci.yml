@@ -73,5 +73,14 @@ jobs:
       - name: New tag text
         shell: bash
         run:   |
+          7z a -t7z pragma.zip tag_text.txt
           ls -R
+          
+      - name: Update nightly release
+        uses: pyTooling/Actions/releaser/composite@main
+        with:
+          tag: nightly
+          rm: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: "pragma.zip"
     
