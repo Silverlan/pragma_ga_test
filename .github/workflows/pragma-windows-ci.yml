@@ -40,7 +40,7 @@ jobs:
         with:
           body_path: tag_text.txt
           tag_name: nightly
-          prerelease: 1
+          prerelease: true
           # token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
           
       - name: Update nightly release
