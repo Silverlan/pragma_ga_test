@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run:   |
           ls -R
-          7z a -t7z ./pragma.zip tag_text.txt
+          zip -ur ./pragma.zip tag_text.txt
           
       - name: Update nightly release
         uses: pyTooling/Actions/releaser/composite@main
