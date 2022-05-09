@@ -31,8 +31,8 @@ jobs:
       - name: Install zip
         shell: bash
         run:   |
-          # choco install zip
-          sudo apt-get install zip
+          choco install zip
+          # sudo apt-get install zip
     
       - name: New tag text
         shell: bash
